@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.env
+.DS_Store
+# Read-only symlink to the sibling AloBot checkout (make link-alobot).
+vendor/alobot
+# Local copies of AloBot's database used for development - never commit.
+*.dump
+*.sql.gz

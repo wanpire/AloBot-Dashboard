@@ -1,0 +1,59 @@
+services:
+  dashboard:
+    build: .
+    container_name: alobot-dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dashboard:${DASHBOARD_DB_PASSWORD:-dashboard}@postgres:5432/dashboard
+    # Loopback only. A reverse proxy on the host (nginx/caddy) terminates
+    # TLS and forwards to 127.0.0.1:8090 - both the operator UI and,
+    # later, the public SMS ingest path live behind it. Never publish
+    # this on 0.0.0.0.
+    ports:
+      - "127.0.0.1:8090:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alobot-dashboard-net
+      - alobot-dashboard-internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: alobot-dashboard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dashboard
+      POSTGRES_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard}
+      POSTGRES_DB: dashboard
+    volumes:
+      - alobot-dashboard-db-data:/var/lib/postgresql/data
+    # Own internal network only, same reasoning as dns-switcher: a
+    # generically named db service on a shared network is how a sibling
+    # container resolves the WRONG project's Postgres.
+    networks:
+      - alobot-dashboard-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  # Shared with sibling projects. Reaching AloBot's Postgres in production
+  # means ALSO joining AloBot's compose network as an external network -
+  # that is a final-phase step (docs/PLAN.md, Phase 7) and is deliberately
+  # not wired here yet.
+  alobot-dashboard-net:
+    name: alobot-dashboard-net
+  alobot-dashboard-internal:
+
+volumes:
+  alobot-dashboard-db-data:
