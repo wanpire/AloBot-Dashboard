@@ -1,0 +1,29 @@
+# expect: {"classification": "BANK_TRANSACTION", "direction": "CREDIT", "amount_irr": 1250000, "balance_irr": 8354098, "account_hint": "5299", "reference": "123456"}
+واریز به حساب 47045299
+مبلغ: 1,250,000 ریال
+مانده: 8,354,098
+شماره پیگیری: 123456
+1405/06/28-14:02
+
+# expect: {"classification": "BANK_TRANSACTION", "direction": "CREDIT", "amount_irr": 5000000, "balance_irr": 12000000, "account_hint": "1234"}
+انتقال وجه به کارت ****1234
+مبلغ +۵,۰۰۰,۰۰۰ ریال
+موجودی: ۱۲,۰۰۰,۰۰۰ ریال
+۱۴۰۵/۰۶/۲۸ ۱۴:۰۲
+
+# expect: {"classification": "BANK_TRANSACTION", "direction": "DEBIT", "amount_irr": 300000, "balance_irr": 11700000, "account_hint": "1234"}
+برداشت از کارت 6104****1234
+مبلغ: 300,000 ریال
+مانده: 11,700,000 ریال
+خرید اینترنتی
+
+# expect: {"classification": "BANK_TRANSACTION", "direction": "DEBIT", "amount_irr": 450000}
+*بانک*
+کارمزد کارت به کارت
+-450,000
+مانده: 9,000,000
+
+# expect: {"classification": "BANK_TRANSACTION", "direction": "CREDIT", "amount_irr": 2000000, "balance_irr": 3000000}
+حساب 0111223344
+واریز 200,000 تومان
+مانده 300,000 تومان

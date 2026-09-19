@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% macro show_result(result) %}
+<table>
+  <tr><td>دسته</td><td dir="ltr">{{ result.classification }}</td></tr>
+  <tr><td>جهت</td><td dir="ltr">{{ result.direction }}</td></tr>
+  <tr><td>مبلغ</td><td>{% if result.amount_irr is not none %}{{ result.amount_irr | toman }} ({{ result.amount_irr | fa_number }} ریال){% else %}—{% endif %}</td></tr>
+  <tr><td>مانده</td><td>{% if result.balance_irr is not none %}{{ result.balance_irr | fa_number }} ریال{% else %}—{% endif %}</td></tr>
+  <tr><td>شناسهٔ حساب/کارت</td><td dir="ltr">{{ result.account_hint or "—" }}</td></tr>
+  <tr><td>پیگیری</td><td dir="ltr">{{ result.reference or "—" }}</td></tr>
+  <tr><td>بانک</td><td>{{ result.bank_name or "—" }}</td></tr>
+  <tr><td>پارسر</td><td dir="ltr">{{ result.parser_id }} · {{ result.confidence }}</td></tr>
+  {% if result.warnings %}<tr><td>هشدار</td><td dir="ltr">{{ result.warnings | join(", ") }}</td></tr>{% endif %}
+</table>
+{% endmacro %}
+{% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
+<div class="grid grid--cards">
+  <div class="card">
+    <h2>پیش‌شمارهٔ کارت → بانک</h2>
+    <p class="hint">بلندترین پیش‌شماره برنده است؛ تقسیم‌شدن یک بازه در آینده یعنی یک ردیف بیشتر.</p>
+    <table>{% for p in prefixes %}<tr><td dir="ltr">{{ p.prefix }}</td><td>{{ p.bank_name }}</td><td>{% if operator.role == "ADMIN" %}<form method="post" action="/banks/prefixes/{{ p.prefix }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td></tr>{% else %}<tr><td class="hint">هنوز پیش‌شماره‌ای نیست.</td></tr>{% endfor %}</table>
+    {% if operator.role == "ADMIN" %}
+    <form method="post" action="/banks/prefixes" class="filters"><label>پیش‌شماره <input type="text" name="prefix" dir="ltr" inputmode="numeric"></label><label>بانک <input type="text" name="bank_name"></label><button class="btn" type="submit">ثبت</button></form>
+    <h3 style="margin-top:12px">آزمایش کارت</h3>
+    <form method="post" action="/banks/test-card" class="filters"><label>شمارهٔ کارت <input type="text" name="card_number" dir="ltr" value="{{ card_test.input if card_test else '' }}"></label><button class="btn" type="submit">بررسی</button></form>
+    {% if card_test %}<p>{% if not card_test.number %}۱۶ رقم نیست.{% else %}Luhn: {{ "معتبر" if card_test.luhn else "نامعتبر" }} · بانک: {{ card_test.bank or "ناشناخته" }}{% endif %}</p>{% endif %}
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2>آزمایش پیامک</h2>
+    <p class="hint">پیامک را بچسبانید تا ببینید پارسر (پارسرهای داخلی + الگوهای فعال) چه می‌خواند.</p>
+    {% if operator.role == "ADMIN" %}
+    <form method="post" action="/banks/test-sms"><label>متن پیامک <textarea name="sample" rows="5" dir="auto">{{ sms_test.sample if sms_test else '' }}</textarea></label><button class="btn" type="submit">پارس کن</button></form>
+    {% endif %}
+    {% if sms_test %}{{ show_result(sms_test.result) }}{% endif %}
+  </div>
+</div>
+<div class="card" style="margin-top:16px">
+  <h2>الگوهای پیامک بانک</h2>
+  <p class="hint">الگو فقط <b>اضافه</b> می‌کند: پیامکی را می‌خواند که پارسرهای داخلی نخوانده‌اند، یا به پیامکی که خوانده‌اند نام بانک می‌دهد. مبلغی را که پارسر داخلی خوانده هرگز عوض نمی‌کند و پیامک رمز یکبارمصرف را اصلاً نمی‌بیند. گروه اول هر عبارت (پرانتز) مقدار است.</p>
+  <table>
+    <thead><tr><th>شناسه</th><th>بانک</th><th>اولویت</th><th>وضعیت</th><th>تشخیص</th><th>مبلغ</th><th>واحد / جهت</th><th></th></tr></thead>
+    <tbody>{% for p in patterns %}
+      <tr>
+        <td dir="ltr">{{ p.id }}</td><td>{{ p.bank_name }}</td><td>{{ p.priority | fa_number }}</td>
+        <td>{{ "فعال" if p.enabled else "غیرفعال" }}</td>
+        <td dir="ltr"><code>{{ p.detect_re }}</code></td><td dir="ltr"><code>{{ p.amount_re }}</code></td><td dir="ltr">{{ p.amount_unit }} / {{ p.direction }}</td>
+        <td>{% if operator.role == "ADMIN" %}<details><summary>عملیات</summary>
+          <form method="post" action="/banks/patterns/{{ p.id }}/test"><label>نمونه <textarea name="sample" rows="3" dir="auto">{{ sandbox.sample if sandbox and sandbox.pattern_id == p.id else '' }}</textarea></label><button class="btn" type="submit">آزمایش فقط این الگو</button></form>
+          {% if sandbox and sandbox.pattern_id == p.id %}{{ show_result(sandbox.result) }}{% endif %}
+          <form method="post" action="/banks/patterns/{{ p.id }}/enabled" class="inline"><input type="hidden" name="enabled" value="{{ '0' if p.enabled else '1' }}"><button class="btn" type="submit">{{ "غیرفعال کن" if p.enabled else "فعال کن" }}</button></form>
+          <form method="post" action="/banks/patterns/{{ p.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف الگو</button></form>
+        </details>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="8" class="hint">الگویی ثبت نشده. تا وقتی پیامک‌های واقعی بانک‌ها برسد، پارسرهای داخلی روی قراردادهای رایج کار می‌کنند.</td></tr>{% endfor %}</tbody>
+  </table>
+  {% if operator.role == "ADMIN" %}
+  {% set d = draft or {} %}
+  <h3 style="margin-top:12px">الگوی جدید / ویرایش (با همان شناسه)</h3>
+  <form method="post" action="/banks/patterns" class="grid grid--cards">
+    <label>شناسه <input type="text" name="id" dir="ltr" value="{{ d.id or '' }}" required></label>
+    <label>بانک <input type="text" name="bank_name" value="{{ d.bank_name or '' }}" required></label>
+    <label>اولویت <input type="number" name="priority" value="{{ d.priority or 100 }}"></label>
+    <label>عبارت تشخیص <input type="text" name="detect_re" dir="ltr" value="{{ d.detect_re or '' }}" required></label>
+    <label>عبارت مبلغ <input type="text" name="amount_re" dir="ltr" value="{{ d.amount_re or '' }}" required></label>
+    <label>واحد مبلغ <select name="amount_unit"><option value="IRR" {% if d.amount_unit == 'IRR' %}selected{% endif %}>ریال</option><option value="TOMAN" {% if d.amount_unit == 'TOMAN' %}selected{% endif %}>تومان</option></select></label>
+    <label>جهت <select name="direction"><option value="CREDIT" {% if d.direction == 'CREDIT' %}selected{% endif %}>واریز</option><option value="DEBIT" {% if d.direction == 'DEBIT' %}selected{% endif %}>برداشت</option></select></label>
+    <label>عبارت مانده <input type="text" name="balance_re" dir="ltr" value="{{ d.balance_re or '' }}"></label>
+    <label>عبارت حساب/کارت <input type="text" name="account_re" dir="ltr" value="{{ d.account_re or '' }}"></label>
+    <label>عبارت پیگیری <input type="text" name="reference_re" dir="ltr" value="{{ d.reference_re or '' }}"></label>
+    <label>یادداشت <input type="text" name="notes" value="{{ d.notes or '' }}"></label>
+    <div><button class="btn btn--primary" type="submit">ذخیره (غیرفعال می‌ماند تا فعال کنید)</button></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

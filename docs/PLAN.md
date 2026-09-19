@@ -121,7 +121,7 @@ have.
 
 ---
 
-## Phase 3 — SMS ingest and Persian bank SMS parsing
+## Phase 3 — SMS ingest and Persian bank SMS parsing ✅ (corpus pending)
 
 Goal: the relay phone can post, the bank's SMS become structured transactions.
 
@@ -169,6 +169,13 @@ Exit criteria: a fixture corpus of at least 100 real-shape messages parses with
 zero false amounts; a synthetic relay client posts end to end and the rows
 appear on the Transactions page; ingest survives a 130-request burst with the
 configured limit.
+
+**Done 2026-09-20** — 192 tests. The corpus criterion is deferred by the
+owner: real bank messages arrive after the first deployment (the shop does not
+yet have the SMS formats). The provisional corpus in `tests/sms_corpus/`
+covers the generic parser and the pattern engine; bank-specific parsers are
+added when real messages exist. End-to-end relay post and the burst were run
+against the real container.
 
 ---
 

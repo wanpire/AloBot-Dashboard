@@ -16,6 +16,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "itsdangerous>=2.2",
     "sqids>=0.5",
+    "regex>=2024.5",
 ]
 
 [project.optional-dependencies]

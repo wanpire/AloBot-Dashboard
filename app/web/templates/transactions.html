@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
+<div class="card">
+  <a class="btn{% if view == 'list' %} btn--primary{% endif %}" href="/transactions">تراکنش‌ها</a>
+  <a class="btn{% if view == 'unparsed' %} btn--primary{% endif %}" href="/transactions?view=unparsed">خوانده‌نشده‌ها</a>
+  <a class="btn{% if view == 'coverage' %} btn--primary{% endif %}" href="/transactions?view=coverage">پوشش پارسر</a>
+</div>
+{% if view == "unparsed" %}
+<div class="card" style="margin-top:16px">
+  <h2>پیامک‌هایی که هیچ پارسری نخواند</h2>
+  {% if reparse %}<div class="flash">{{ "اعمال شد" if reparse.mode == "apply" else "پیش‌نمایش" }}: از {{ reparse.examined | fa_number }} پیامک، {{ reparse.changed | fa_number }} پیامک با پارسر فعلی خوانده {{ "شد" if reparse.mode == "apply" else "می‌شود" }}.</div>{% endif %}
+  {% if operator.role == "ADMIN" %}
+  <form method="post" action="/transactions/reparse" class="filters"><input type="hidden" name="mode" value="dry-run"><button class="btn" type="submit">پیش‌نمایش بازخوانی با الگوهای فعلی</button></form>
+  <form method="post" action="/transactions/reparse" class="filters"><input type="hidden" name="mode" value="apply"><button class="btn btn--primary" type="submit">بازخوانی و اعمال</button></form>
+  {% endif %}
+  <table>
+    <thead><tr><th>زمان</th><th>فرستنده</th><th>دستگاه</th><th>متن</th></tr></thead>
+    <tbody>{% for ev, device in events %}<tr><td>{{ ev.sms_timestamp | jalali_dt }}</td><td dir="ltr">{{ ev.sender }}</td><td dir="ltr">{{ device.code }}</td><td dir="auto"><pre>{{ ev.body }}</pre></td></tr>{% else %}<tr><td colspan="4" class="hint">همه‌چیز خوانده شده.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% elif view == "coverage" %}
+<div class="card" style="margin-top:16px">
+  <h2>پوشش پارسر در {{ days | fa_number }} روز گذشته</h2>
+  <form method="get" action="/transactions" class="filters"><input type="hidden" name="view" value="coverage"><label>روز <input type="number" name="days" value="{{ days }}" min="1" max="365"></label><button class="btn" type="submit">اعمال</button></form>
+  <table>
+    <thead><tr><th>فرستنده</th><th>کل</th><th>تراکنش/مانده</th><th>رمز</th><th>تبلیغ</th><th>خوانده‌نشده</th><th>پوشش</th></tr></thead>
+    <tbody>{% for r in coverage %}<tr><td dir="ltr">{{ r.sender }}</td><td>{{ r.total | fa_number }}</td><td>{{ r.parsed | fa_number }}</td><td>{{ r.otp | fa_number }}</td><td>{{ r.promo | fa_number }}</td><td>{{ r.unknown | fa_number }}</td><td>{{ r.percent | fa_number }}٪</td></tr>{% else %}<tr><td colspan="7" class="hint">در این بازه پیامکی نرسیده.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="margin-top:16px">
+  <form method="get" action="/transactions" class="filters">
+    <label>جهت <select name="direction"><option value="">همه</option><option value="CREDIT" {% if filters.direction == "CREDIT" %}selected{% endif %}>واریز</option><option value="DEBIT" {% if filters.direction == "DEBIT" %}selected{% endif %}>برداشت</option><option value="UNKNOWN" {% if filters.direction == "UNKNOWN" %}selected{% endif %}>نامشخص</option></select></label>
+    <label>وضعیت <select name="disposition"><option value="">همه</option>{% for d in dispositions %}<option value="{{ d }}" {% if filters.disposition == d %}selected{% endif %}>{{ disposition_labels[d] }}</option>{% endfor %}</select></label>
+    <label>حساب <select name="account_id"><option value="">همه</option>{% for a in accounts %}<option value="{{ a.id }}" {% if filters.account_id == a.id %}selected{% endif %}>{{ a.display_name }}</option>{% endfor %}</select></label>
+    <label>جست‌وجو <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="شمارهٔ پیگیری، ۴ رقم آخر، متن"></label>
+    <button class="btn" type="submit">اعمال</button>
+  </form>
+</div>
+<div class="card" style="margin-top:16px">
+  <table>
+    <thead><tr><th>زمان بانک</th><th>جهت</th><th>مبلغ</th><th>مانده</th><th>حساب</th><th>شناسه</th><th>پیگیری</th><th>وضعیت</th><th>پارسر</th><th></th></tr></thead>
+    <tbody>
+    {% for tx, ev, acct, device in rows %}
+      <tr>
+        <td>{{ tx.bank_timestamp | jalali_dt if tx.bank_timestamp else "—" }}</td>
+        <td>{{ {"CREDIT": "واریز", "DEBIT": "برداشت"}.get(tx.direction, "نامشخص") }}</td>
+        <td>{% if tx.amount_irr is not none %}{{ tx.amount_irr | toman }} <span class="hint">{{ tx.amount_irr | fa_number }} ریال</span>{% else %}—{% endif %}</td>
+        <td>{% if tx.balance_irr is not none %}{{ tx.balance_irr | fa_number }} ریال{% else %}—{% endif %}</td>
+        <td>{% if acct %}{{ acct.display_name }}{% if acct.status != "ACTIVE" %} <span class="badge">{{ acct.status }}</span>{% endif %}{% else %}—{% endif %}{% if tx.inferred_account_id %} <span class="hint">(حدس: زنجیرهٔ مانده)</span>{% endif %}</td>
+        <td dir="ltr">{{ tx.account_hint or "—" }}</td><td dir="ltr">{{ tx.reference or "—" }}</td>
+        <td>{{ disposition_labels[tx.disposition] }}{% if tx.disposition_note %} <span class="hint">{{ tx.disposition_note }}</span>{% endif %}</td>
+        <td dir="ltr" class="hint">{{ tx.parser_id }}</td>
+        <td>{% if operator.role == "ADMIN" %}<details><summary>عملیات</summary>
+          <form method="post" action="/transactions/{{ tx.id }}/account" class="inline"><select name="account_id"><option value="">بدون حساب</option>{% for a in accounts %}<option value="{{ a.id }}" {% if tx.account_id == a.id %}selected{% endif %}>{{ a.display_name }}</option>{% endfor %}</select><button class="btn" type="submit">تعیین حساب</button></form>
+          <form method="post" action="/transactions/{{ tx.id }}/disposition" class="inline"><select name="disposition">{% for d in dispositions %}<option value="{{ d }}" {% if tx.disposition == d %}selected{% endif %}>{{ disposition_labels[d] }}</option>{% endfor %}</select><input type="text" name="note" placeholder="دلیل" value="{{ tx.disposition_note or '' }}"><button class="btn" type="submit">ثبت</button></form>
+          <details><summary>متن پیامک</summary><pre dir="auto">{{ ev.body }}</pre><span class="hint" dir="ltr">{{ ev.sender }} · {{ device.code }}</span></details>
+        </details>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="10" class="hint">تراکنشی با این فیلتر نیست.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% set query_string = "direction=" ~ (filters.direction or "") ~ "&disposition=" ~ (filters.disposition or "") ~ "&account_id=" ~ (filters.account_id or "") ~ "&q=" ~ (filters.q or "") ~ "&" %}
+  {% include "_pager.html" %}
+</div>
+{% endif %}
+{% endblock %}

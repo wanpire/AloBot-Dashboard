@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice %}<div class="flash flash--ok">{{ "حساب ساخته شد." if notice == "created" else "ذخیره شد." }}</div>{% endif %}
+{% for g in groups %}
+<div class="card" style="margin-bottom:16px">
+  <h2>{{ g.account.display_name }} <span class="badge">{{ status_labels[g.account.status] }}</span> <span class="hint">{{ g.account.bank_name }}{% if g.account.owner_label %} · {{ g.account.owner_label }}{% endif %}</span></h2>
+  <p class="hint">{{ status_hints[g.account.status] }}{% if g.inferred_from %} احتمالاً همان حساب «{{ g.inferred_from.display_name }}» است (زنجیرهٔ مانده می‌خواند).{% endif %}</p>
+  <div class="grid grid--cards">
+    <div>
+      <h3>شناسه‌ها</h3>
+      <table>{% for i in g.identifiers %}<tr><td>{{ kind_labels[i.kind] }}</td><td dir="ltr">{{ i.value }}</td><td>{% if operator.role == "ADMIN" %}<form method="post" action="/accounts/{{ g.account.id }}/identifiers/{{ i.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td></tr>{% else %}<tr><td class="hint">—</td></tr>{% endfor %}</table>
+      {% if operator.role == "ADMIN" %}
+      <form method="post" action="/accounts/{{ g.account.id }}/identifiers" class="filters">
+        <label>نوع <select name="kind">{% for k in kinds %}<option value="{{ k }}">{{ kind_labels[k] }}</option>{% endfor %}</select></label>
+        <label>مقدار <input type="text" name="value" dir="ltr"></label>
+        <button class="btn" type="submit">افزودن شناسه</button>
+      </form>
+      {% endif %}
+    </div>
+    <div>
+      <h3>کارت‌های دریافت</h3>
+      <table>{% for c in g.cards %}<tr><td dir="ltr">{{ c.card_number }}</td><td>{{ c.holder_name }}</td><td>{{ "فعال" if c.status == "ACTIVE" else "غیرفعال" }}</td><td>{% if operator.role == "ADMIN" %}<form method="post" action="/cards/{{ c.id }}/status" class="inline"><input type="hidden" name="status" value="{{ 'DISABLED' if c.status == 'ACTIVE' else 'ACTIVE' }}"><button class="btn btn--ghost" type="submit">{{ "غیرفعال کن" if c.status == "ACTIVE" else "فعال کن" }}</button></form>{% endif %}</td></tr>{% else %}<tr><td class="hint">—</td></tr>{% endfor %}</table>
+      {% if operator.role == "ADMIN" %}
+      <form method="post" action="/accounts/{{ g.account.id }}/cards" class="filters">
+        <label>شمارهٔ کارت <input type="text" name="card_number" dir="ltr" inputmode="numeric"></label>
+        <label>به نام <input type="text" name="holder_name"><span class="hint">همان که روی فاکتور چاپ می‌شود.</span></label>
+        <button class="btn" type="submit">افزودن کارت</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% if operator.role == "ADMIN" %}
+  <form method="post" action="/accounts/{{ g.account.id }}/status" class="filters" style="margin-top:10px">
+    <label>وضعیت <select name="status">{% for st in statuses %}<option value="{{ st }}" {% if st == g.account.status %}selected{% endif %}>{{ status_labels[st] }} — {{ status_hints[st] }}</option>{% endfor %}</select></label>
+    <button class="btn" type="submit">اعمال</button>
+  </form>
+  {% endif %}
+</div>
+{% else %}<div class="card"><p class="hint">هنوز حسابی ثبت نشده. اولین پیامک بانکی هم خودش یک حساب «در انتظار تایید» می‌سازد.</p></div>{% endfor %}
+{% if operator.role == "ADMIN" %}
+<div class="card" style="margin-top:16px">
+  <h2>حساب جدید</h2>
+  <form method="post" action="/accounts">
+    <label>بانک <input type="text" name="bank_name" required></label>
+    <label>نام نمایشی <input type="text" name="display_name" required></label>
+    <label>صاحب حساب <input type="text" name="owner_label"></label>
+    <label>شناسه‌ای که در پیامک می‌آید <div class="filters"><select name="identifier_kind">{% for k in kinds %}<option value="{{ k }}">{{ kind_labels[k] }}</option>{% endfor %}</select><input type="text" name="identifier_value" dir="ltr" placeholder="5299"></div></label>
+    <button class="btn btn--primary" type="submit">ساختن</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

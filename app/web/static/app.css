@@ -35,3 +35,6 @@ table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:8px 10p
 .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.filters label{margin:0;min-width:160px}.filters input,.filters select{margin-top:4px}
 .pager{margin-top:10px}
 h2{font-size:18px;margin:16px 0 8px}h3{font-size:15px;margin:0 0 8px}
+.card--token{border-color:#f59e0b;background:#fffbeb}.card--token pre{background:#fff;padding:10px;border-radius:6px;overflow-x:auto}
+details>summary{cursor:pointer;color:var(--accent)}details form{margin:6px 0}
+textarea{font:inherit}

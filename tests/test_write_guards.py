@@ -13,6 +13,7 @@ ALLOWLIST = {
     "/login": "the door itself",
     "/logout": "leaving is always allowed",
     "/password": "changing your own password is not a write to shop data",
+    "/api/v1/sms": "the relay phone's door: device-token authenticated, no operator session",
 }
 
 
@@ -59,7 +60,7 @@ async def test_every_write_route_refuses_anonymous():
     failures = []
     async with client() as c:
         for route, methods in write_routes():
-            if route.path in ("/login",):
+            if route.path in ("/login", "/api/v1/sms"):
                 continue
             path = re.sub(r"\{[^}]+\}", "1", route.path)
             for method in methods:

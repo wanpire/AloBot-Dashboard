@@ -1,0 +1,19 @@
+# expect: {"classification": "OTP"}
+رمز پویا: 482913
+مبلغ: 1,250,000 ریال
+پذیرنده: فروشگاه آلو
+این رمز تا 60 ثانیه معتبر است
+
+# expect: {"classification": "OTP"}
+کد تایید شما: 55321
+بانک ملت
+
+# expect: {"classification": "PROMOTIONAL"}
+جشنواره بزرگ بانک! با هر خرید در قرعه‌کشی شرکت کنید. لغو 11
+
+# expect: {"classification": "BALANCE", "balance_irr": 8354098}
+مانده حساب شما: 8,354,098 ریال
+1405/06/28
+
+# expect: {"classification": "UNKNOWN"}
+سلام، فردا ساعت ۵ جلسه داریم.

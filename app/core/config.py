@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     # the visitor can type themselves.
     trusted_proxy_ip_header: str = ""
 
+    # The public SMS door. Body cap in bytes (a bank SMS is a few hundred),
+    # per-device and per-IP request limits per minute.
+    ingest_max_body_bytes: int = 8192
+    ingest_device_rate_per_minute: int = 600
+    ingest_ip_rate_per_minute: int = 120
+
     # The in-process sweep loop (outbox, prunes, later the matcher). Off in
     # tests, which drive sweeps directly. /health reports the loop stale
     # when it is expected and the heartbeat is older than 90 s.

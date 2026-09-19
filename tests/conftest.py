@@ -117,10 +117,13 @@ def migrated_schema():
 async def clean_tables(migrated_schema):
     """Every test starts from empty tables (schema kept, rows truncated)."""
     from app.db.session import engine
+    from app.api.ingest import device_limiter, ip_limiter
     from app.web.routes.auth import login_limiter
 
     yield
     login_limiter.reset()
+    device_limiter.reset()
+    ip_limiter.reset()
     from tests.alobot_seed import truncate_alobot
 
     await truncate_alobot()

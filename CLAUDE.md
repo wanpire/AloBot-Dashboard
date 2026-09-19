@@ -292,4 +292,39 @@ Phase 2 (AloBot data window, read-only) - done:
   database and connect through `dashboard_ro`, so the suite exercises the
   exact schema and the exact privileges production will have.
 
-Next: Phase 3 in `docs/PLAN.md` - SMS ingest and the Persian bank SMS parser.
+Phase 3 (SMS ingest and parser) - done, with one open gap:
+
+- Migration `0002`: `devices`, `device_credentials` (one ACTIVE per device by
+  partial unique index), `financial_accounts` (+ identifiers, unique per
+  kind/value), `payment_cards` (16 digits, unique), `bank_card_prefixes`,
+  `bank_sms_patterns`, `sms_events` (dedupe_key UNIQUE, OTP-redacted body),
+  `transaction_candidates` (one per event, non-negative amounts).
+- `POST /api/v1/sms` (`app/api/ingest.py`): device token in the body (the
+  relay app's contract), body capped in bytes before parsing, one generic
+  401 for every auth failure, per-device limit and per-IP limit behind the
+  trusted-proxy header, dedupe over device+sender+timestamp+normalised body,
+  Android epoch-ms and iOS Shortcuts timestamps. Matching is NOT done here -
+  the handler persists and answers; Phase 4's sweep matches.
+- `app/sms/`: normaliser, OTP and promotional detection, a generic Persian
+  bank-transaction parser (direction from phrases and signs, amount after
+  «مبلغ» or the direction word or as a signed number, balance, account
+  last-four, reference), balance-only, unknown; then operator patterns
+  (`app/sms/patterns.py`) which are additive only, never see an OTP, and are
+  refused at the form if they blow a regex time budget on bait input.
+- Unknown identifiers create a PENDING account; the balance chain proposes
+  the owner (`inferred_account_id`) and nothing auto-activates.
+- Screens: devices (token shown once, rotate/revoke need a ticked
+  confirmation naming what stops), accounts and cards (statuses with their
+  consequences spelled out, Luhn on entry), banks (prefix→bank, patterns with
+  a sandbox that runs only that pattern, test-card and test-SMS tools),
+  transactions (filters, assign account, decline/restore income, unparsed
+  list with dry-run/apply reparse, coverage per sender).
+
+**Open gap, owner's decision:** the bank-specific parsers wait for real
+messages. `tests/sms_corpus/` is provisional synthetic text written from
+common conventions; the owner supplies real SMS (amounts and names altered)
+after the first deployment, and each bank's format lands either as a parser
+in `app/sms/parsers.py` or as an operator pattern. Until then the generic
+parser and the pattern editor are the coverage.
+
+Next: Phase 4 in `docs/PLAN.md` - claims, the matcher, the review queue.
