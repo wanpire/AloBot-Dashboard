@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "_alobot_banner.html" %}
+<div class="grid grid--cards">
+  <div class="card"><h3>پلتفرم‌ها</h3><table>{% for p in platforms %}<tr><td>{{ p.label }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td></tr>{% endfor %}</table></div>
+  <div class="card"><h3>پروتکل‌ها</h3><table>{% for p in protocols %}<tr><td>{{ p.label }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td></tr>{% endfor %}</table></div>
+</div>
+<div class="card" style="margin-top:16px"><h3>راهنماها</h3>
+  <table><thead><tr><th>پلتفرم</th><th>پروتکل</th><th>نوع سرویس</th><th>لوکیشن</th><th>متن</th><th>رسانه</th><th>وضعیت</th></tr></thead>
+  <tbody>{% for g in guides %}<tr><td>{{ g.platform }}</td><td>{{ g.protocol }}</td><td>{{ label(labels.category, g.category) }}</td><td>{{ g.location or "—" }}</td><td>{{ g.body_len | fa_number }} نویسه</td><td>{{ g.media_type or "—" }}</td><td>{{ "فعال" if g.is_active else "غیرفعال" }}</td></tr>{% endfor %}</tbody></table>
+</div>
+<div class="grid grid--cards" style="margin-top:16px">
+  <div class="card"><h3>لینک‌های دانلود</h3><table>{% for l in links %}<tr><td>{{ l.platform }} / {{ l.protocol }}</td><td dir="ltr"><a class="link" href="{{ l.url }}" rel="noopener">{{ l.url }}</a></td></tr>{% endfor %}</table></div>
+  <div class="card"><h3>پروفایل‌های OpenVPN</h3><table>{% for p in profiles %}<tr><td>{{ p.name }}</td><td>{{ label(labels.category, p.category) if p.category else "همه" }}</td><td>{{ p.location or "—" }}</td><td>{{ p.platform or "همه" }}</td><td>{{ p.file_type or "متن" }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td></tr>{% endfor %}</table></div>
+</div>
+{% endblock %}

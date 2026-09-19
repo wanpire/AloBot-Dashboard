@@ -1,0 +1,4 @@
+{% set pages = ((total - 1) // page_size) + 1 if total else 1 %}
+<div class="pager hint">{{ total | fa_number }} ردیف · صفحهٔ {{ page | fa_number }} از {{ pages | fa_number }}
+{% if page > 1 %} · <a href="?{{ query_string }}page={{ page - 1 }}">قبلی</a>{% endif %}
+{% if page < pages %} · <a href="?{{ query_string }}page={{ page + 1 }}">بعدی</a>{% endif %}</div>

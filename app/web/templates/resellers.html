@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "_alobot_banner.html" %}
+<div class="card">
+  <table>
+    <thead><tr><th>شناسهٔ تلگرام</th><th>نام کاربری</th><th>موجودی</th><th>پورسانت</th><th>اکانت‌ها</th><th>از تاریخ</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td><td dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</td><td>{{ r.balance | toman_amount }}</td><td>{{ r.commission_percent | int | fa_number }}٪</td><td>{{ r.accounts | fa_number }}</td><td>{{ r.created_at | jalali_dt }}</td></tr>
+    {% else %}<tr><td colspan="6" class="hint">نماینده‌ای ثبت نشده.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

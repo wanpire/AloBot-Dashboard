@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <form method="get" action="/stats" class="filters">
+    {% for d, name in [(1, "امروز"), (7, "۷ روز"), (30, "۳۰ روز"), (90, "۹۰ روز"), (365, "یک سال")] %}
+      <a class="btn{% if days == d %} btn--primary{% endif %}" href="/stats?days={{ d }}">{{ name }}</a>
+    {% endfor %}
+  </form>
+  <p class="hint">بازه: {{ start | jalali_dt }} تا {{ end | jalali_dt }} (روزهای کامل به وقت تهران)</p>
+</div>
+<h2>در این بازه</h2>
+<div class="grid grid--cards">
+  <div class="card"><div class="stat__label">سفارش تایید‌شده</div><div class="stat__value">{{ orders | fa_number }}</div></div>
+  <div class="card"><div class="stat__label">درآمد</div><div class="stat__value">{{ revenue | toman_amount }}</div></div>
+  <div class="card"><div class="stat__label">تایید خودکار</div><div class="stat__value">{{ auto_approved | fa_number }}</div></div>
+  <div class="card"><div class="stat__label">رد شده / لغو شده</div><div class="stat__value">{{ rejected | fa_number }} / {{ revoked | fa_number }}</div></div>
+  <div class="card"><div class="stat__label">کد تخفیف</div><div class="stat__value">{{ discount_uses | fa_number }}</div><div class="hint">{{ discount_given | toman_amount }} تخفیف داده شده</div></div>
+  <div class="card"><div class="stat__label">مشتری تازه</div><div class="stat__value">{{ new_customers | fa_number }}</div></div>
+</div>
+<div class="grid grid--cards">
+  <div class="card"><h3>بر اساس نوع سرویس</h3><table>{% for c, n, a in by_category %}<tr><td>{{ label(labels.category, c) }}</td><td>{{ n | fa_number }}</td><td>{{ a | toman_amount }}</td></tr>{% else %}<tr><td class="hint">—</td></tr>{% endfor %}</table></div>
+  <div class="card"><h3>بر اساس روش پرداخت</h3><table>{% for m, n in by_method %}<tr><td>{{ label(labels.method, m) }}</td><td>{{ n | fa_number }}</td></tr>{% endfor %}</table></div>
+  <div class="card"><h3>بر اساس نوع سفارش</h3><table>{% for p, n in by_purpose %}<tr><td>{{ label(labels.purpose, p) }}</td><td>{{ n | fa_number }}</td></tr>{% endfor %}</table></div>
+</div>
+<h2>هم‌اکنون</h2>
+<div class="grid grid--cards">
+  <div class="card"><div class="stat__label">کل مشتریان</div><div class="stat__value">{{ snapshot.customers | fa_number }}</div><div class="hint">{{ snapshot.blocked | fa_number }} مسدود</div></div>
+  <div class="card"><div class="stat__label">کل اکانت‌ها</div><div class="stat__value">{{ snapshot.accounts | fa_number }}</div><div class="hint">{{ snapshot.active_accounts | fa_number }} فعال · {{ snapshot.trial_accounts | fa_number }} تست</div></div>
+  <div class="card"><div class="stat__label">نمایندگان</div><div class="stat__value">{{ snapshot.resellers | fa_number }}</div><div class="hint">مجموع موجودی {{ snapshot.reseller_balance | toman_amount }}</div></div>
+</div>
+{% endblock %}

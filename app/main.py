@@ -24,7 +24,9 @@ from app.services import sweeps
 from app.services.events import install_event_sink
 from app.web.deps import Unauthenticated
 from app.web.guards import OriginGuardMiddleware, RequestIdMiddleware
+from app.alobot.link import link
 from app.web.routes import access as access_routes
+from app.web.routes import alobot_pages
 from app.web.routes import auth as auth_routes
 from app.web.routes import events as event_routes
 from app.web.routes import pages as page_routes
@@ -44,6 +46,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not settings.trusted_proxy_ip_header:
         log.warning("boot.no_trusted_proxy_header", detail="per-IP login rate limit is OFF")
     install_event_sink()
+    await link.connect()
     runner = None
     if settings.run_sweeps:
         runner = asyncio.create_task(
@@ -65,6 +68,7 @@ app.include_router(auth_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(access_routes.router)
 app.include_router(event_routes.router)
+app.include_router(alobot_pages.router)
 app.include_router(page_routes.router)  # placeholders last: specific pages above win
 
 
@@ -102,6 +106,8 @@ async def health() -> JSONResponse:
     settings = get_settings()
     own = await _ping(engine)
     alobot = "unconfigured" if alobot_engine is None else await _ping(alobot_engine)
+    if alobot == "ok" and not link.available:
+        alobot = "incompatible: " + "; ".join(link.problems)
     age = sweeps.heartbeat_age(settings.heartbeat_path)
     sweeps_ok = (not settings.run_sweeps) or (age is not None and age <= sweeps.HEARTBEAT_STALE_SECONDS)
     body = {

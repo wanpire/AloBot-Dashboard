@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "password_changed" %}<div class="flash flash--ok">رمز عبور تغییر کرد.</div>{% endif %}
+<div class="card">
+  <h2>پایگاه‌دادهٔ آلوبات متصل نیست</h2>
+  <p>این بخش داده‌اش را از پایگاه‌دادهٔ آلوبات می‌خواند و در حال حاضر به آن دسترسی ندارد:</p>
+  <ul>{% for p in problems %}<li dir="ltr">{{ p }}</li>{% endfor %}</ul>
+  <p class="hint">تا اتصال برقرار نشود، بخش‌های مستقل داشبورد (تنظیمات، دسترسی‌ها، رویدادها) همچنان کار می‌کنند.</p>
+</div>
+{% endblock %}

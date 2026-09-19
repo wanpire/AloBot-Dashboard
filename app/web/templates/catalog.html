@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "_alobot_banner.html" %}
+<div class="card">
+  <h2>سرویس‌ها</h2>
+  <table>
+    <thead><tr><th>عنوان</th><th>نوع</th><th>لوکیشن</th><th>مدت</th><th>کاربر</th><th>گروه IBSng</th><th>قیمت</th><th>وضعیت</th></tr></thead>
+    <tbody>{% for s in services %}<tr><td>{{ s.title }}</td><td>{{ label(labels.category, s.category) }}</td><td>{% if s.location %}{{ s.flag_emoji }} {{ s.location }}{% else %}—{% endif %}</td><td>{{ s.duration_months | fa_number if s.duration_months else "—" }} ماه</td><td>{{ s.user_count | fa_number if s.user_count else "—" }}</td><td dir="ltr">{{ s.group_name }}</td><td>{{ s.price | toman_amount }}</td><td>{{ "فعال" if s.is_active else "غیرفعال" }}</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+<div class="grid grid--cards" style="margin-top:16px">
+  <div class="card"><h3>لوکیشن‌ها</h3><table>{% for l in locations %}<tr><td>{{ l.flag_emoji }} {{ l.title }}</td><td>{{ "فعال" if l.is_active else "غیرفعال" }}</td></tr>{% endfor %}</table></div>
+  <div class="card"><h3>گروه‌های IBSng (همگام‌شده)</h3><table>{% for g in groups %}<tr><td dir="ltr">{{ g.name }}</td><td>{% if g.is_trial %}<span class="badge">تست {{ label(labels.category, g.trial_category) }}</span>{% endif %}</td><td class="hint">{{ g.synced_at | jalali_dt }}</td></tr>{% endfor %}</table></div>
+</div>
+{% endblock %}

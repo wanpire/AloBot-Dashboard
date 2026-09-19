@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <form method="get" action="/customers" class="filters">
+    <label>جست‌وجو <input type="text" name="q" value="{{ q }}" placeholder="شناسهٔ تلگرام یا نام کاربری" autofocus></label>
+    <button class="btn" type="submit">جست‌وجو</button>
+  </form>
+</div>
+<div class="card" style="margin-top:16px">
+  <table>
+    <thead><tr><th>شناسهٔ تلگرام</th><th>نام کاربری</th><th>اکانت‌ها</th><th>سفارش‌ها</th><th>مجموع خرید</th><th>اولین بازدید</th><th>وضعیت</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td>
+        <td dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</td>
+        <td>{{ r.accounts | fa_number }}</td><td>{{ r.orders | fa_number }}</td><td>{{ r.spent | toman_amount }}</td>
+        <td>{{ r.first_seen_at | jalali_dt }}</td>
+        <td>{% if r.is_blocked %}<span class="badge">مسدود</span>{% else %}فعال{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="7" class="hint">مشتری‌ای پیدا نشد.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

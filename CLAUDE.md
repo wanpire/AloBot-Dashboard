@@ -262,5 +262,34 @@ Phase 1 (foundation) - done, 109 tests:
   (the image pins `postgresql-client-16` because a 17 client's dump broke a
   16 restore).
 
-Next: Phase 2 in `docs/PLAN.md` - the read-only window onto a COPY of
-AloBot's database.
+Phase 2 (AloBot data window, read-only) - done:
+
+- `scripts/copy_alobot_db.sh` restores an AloBot dump into a LOCAL database
+  and creates the SELECT-only `dashboard_ro` role; refuses non-local hosts.
+  `scripts/seed_alobot_copy.py` fills a local copy with deterministic
+  synthetic data covering every payment status, method and purpose AloBot
+  produces; also refuses non-local hosts.
+- `app/alobot/link.py` reflects the tables in `app/alobot/compat.py` at boot
+  and runs the compatibility check; `link.available` is the one question
+  every AloBot page asks, and `/health` reports `alobot_db` as ok /
+  unconfigured / incompatible with the missing column named.
+- `app/alobot/queries.py` holds every read as a plain SELECT over the
+  reflected tables; `tests/test_alobot_pages.py` records every statement the
+  AloBot engine executes while walking all screens and asserts they are all
+  SELECTs (and the role could not write anyway - a test proves that too).
+- `app/alobot/money.py` (Toman↔Rial, refuses sub-Rial precision),
+  `app/alobot/codes.py` (AloBot's sqids order codes, alphabet pinned against
+  `vendor/alobot` by a test), `app/alobot/time.py` (Tehran day bounds).
+- Screens: overview (queues waiting on a human + today's figures), shop
+  stats (period figures separated from the «هم‌اکنون» snapshot), customers
+  (search + card with accounts and payments), orders (filters + invoice-code
+  search), subscriptions (expiry or an honest «نامشخص», since AloBot reads
+  expiry live from IBSng and this dashboard never calls IBSng), resellers,
+  catalog, discount codes, tutorials/links/profiles, bot settings - the last
+  four carry the read-only banner until the integration phase.
+- Tests build the AloBot copy from AloBot's OWN Alembic migrations in
+  `vendor/alobot` (pinned commit) into a throwaway `alobot_copy_test`
+  database and connect through `dashboard_ro`, so the suite exercises the
+  exact schema and the exact privileges production will have.
+
+Next: Phase 3 in `docs/PLAN.md` - SMS ingest and the Persian bank SMS parser.

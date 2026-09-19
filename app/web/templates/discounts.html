@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "_alobot_banner.html" %}
+<div class="card">
+  <table>
+    <thead><tr><th>کد</th><th>درصد</th><th>نوع</th><th>سقف</th><th>مصرف (ربات)</th><th>مصرف (ثبت‌شده)</th><th>تخفیف داده‌شده</th><th>دامنه</th><th>وضعیت</th><th>ساخت</th></tr></thead>
+    <tbody>
+    {% for d in rows %}
+      <tr><td dir="ltr">{{ d.code }}</td><td>{{ d.percent | int | fa_number }}٪</td><td>{{ "عمومی" if d.is_public else "خصوصی / VIP" }}</td><td>{{ d.usage_limit | fa_number if d.usage_limit else "نامحدود" }}</td><td>{{ d.used_count | fa_number }}</td><td>{{ d.uses | fa_number }}</td><td>{{ d.given | toman_amount }}</td><td>{{ d.categories or "همه" }}</td><td>{{ "فعال" if d.is_active else "غیرفعال" }}</td><td>{{ d.created_at | jalali_dt }}</td></tr>
+    {% else %}<tr><td colspan="10" class="hint">کدی ثبت نشده.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

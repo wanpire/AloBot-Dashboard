@@ -29,7 +29,8 @@ def test_only_local_and_test_relax_guards(env, relaxed):
     assert s.is_relaxed_env is relaxed
 
 
-def test_alobot_writes_default_off():
+def test_alobot_writes_default_off(monkeypatch):
+    monkeypatch.delenv("ALOBOT_DATABASE_URL", raising=False)
     s = Settings(_env_file=None, env_name="local", database_url="postgresql+asyncpg://x", session_secret="a" * 32)
     assert s.alobot_db_writes_enabled is False
     assert s.alobot_database_url == ""

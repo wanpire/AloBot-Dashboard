@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "_alobot_banner.html" %}
+<div class="card">
+  <table>
+    <thead><tr><th>تنظیم</th><th>کلید</th><th>مقدار</th></tr></thead>
+    <tbody>{% for key, name, value in known %}<tr><td>{{ name }}</td><td dir="ltr" class="hint">{{ key }}</td><td dir="ltr">{% if value is none %}<span class="hint">تنظیم نشده (پیش‌فرض ربات)</span>{% else %}{{ value }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% if other %}
+<div class="card" style="margin-top:16px"><h3>کلیدهای دیگر</h3>
+  <table>{% for key, value in other %}<tr><td dir="ltr">{{ key }}</td><td dir="ltr">{{ value }}</td></tr>{% endfor %}</table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <form method="get" action="/subscriptions" class="filters">
+    <label>نوع سرویس <select name="category"><option value="">همه</option>{% for k, v in labels.category.items() %}<option value="{{ k }}" {% if filters.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+    <label>تست <select name="trial"><option value="">همه</option><option value="1" {% if filters.trial == True %}selected{% endif %}>فقط تست</option><option value="0" {% if filters.trial == False %}selected{% endif %}>بدون تست</option></select></label>
+    <label>وضعیت <select name="state"><option value="">همه</option><option value="active" {% if filters.state == "active" %}selected{% endif %}>فعال</option><option value="expired" {% if filters.state == "expired" %}selected{% endif %}>منقضی</option><option value="unknown" {% if filters.state == "unknown" %}selected{% endif %}>نامشخص</option></select></label>
+    <label>جست‌وجو <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="نام کاربری IBSng یا شناسهٔ تلگرام"></label>
+    <button class="btn" type="submit">اعمال</button>
+  </form>
+  <p class="hint">«نامشخص» یعنی آلوبات تاریخ انقضا را ذخیره نکرده و آن را زنده از IBSng می‌خواند؛ این داشبورد به IBSng وصل نمی‌شود.</p>
+</div>
+<div class="card" style="margin-top:16px">
+  <table>
+    <thead><tr><th>نام کاربری IBSng</th><th>گروه</th><th>مشتری</th><th>سرویس</th><th>نوع</th><th>وضعیت</th><th>انقضا</th><th>ساخت</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td dir="ltr">{{ r.ibsng_username }}</td><td dir="ltr">{{ r.ibsng_group }}</td>
+        <td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td>
+        <td>{{ r.service or "—" }}</td><td>{% if r.is_trial %}تست{% else %}{{ label(labels.category, r.category) }}{% endif %}</td>
+        <td>{% if r.state == "active" %}فعال{% elif r.state == "expired" %}منقضی{% else %}<span class="hint">نامشخص</span>{% endif %}</td>
+        <td>{% if r.expires_at %}{{ r.expires_at | jalali_dt }}{% else %}—{% endif %}</td><td>{{ r.created_at | jalali_dt }}</td>
+      </tr>
+    {% else %}<tr><td colspan="8" class="hint">اکانتی با این فیلتر نیست.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% set query_string = "category=" ~ (filters.category or "") ~ "&state=" ~ (filters.state or "") ~ "&q=" ~ (filters.q or "") ~ "&trial=" ~ ("1" if filters.trial == True else ("0" if filters.trial == False else "")) ~ "&" %}
+  {% include "_pager.html" %}
+</div>
+{% endblock %}

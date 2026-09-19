@@ -1,4 +1,4 @@
-.PHONY: up down restart logs migrate revision test link-alobot check-alobot-pin
+.PHONY: up down restart logs migrate revision test link-alobot check-alobot-pin copy-alobot-db seed-alobot-copy
 
 up:
 	docker compose up -d --build
@@ -29,3 +29,11 @@ link-alobot:
 # Verify the linked checkout is at the commit this project was verified against.
 check-alobot-pin:
 	bash scripts/link_alobot.sh --check
+
+# Restore an AloBot dump into a LOCAL copy with a read-only role (Phase 2).
+copy-alobot-db:
+	bash scripts/copy_alobot_db.sh $(DUMP) $(ADMIN_URL) $(COPY_DB)
+
+# Fill a LOCAL AloBot copy with synthetic data.
+seed-alobot-copy:
+	python scripts/seed_alobot_copy.py --url $(URL) --customers $(or $(CUSTOMERS),40)

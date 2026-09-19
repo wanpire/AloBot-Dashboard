@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <form method="get" action="/orders" class="filters">
+    <label>وضعیت <select name="status"><option value="">همه</option>{% for k, v in labels.status.items() %}<option value="{{ k }}" {% if filters.status == k %}selected{% endif %}>{{ v }} ({{ by_status.get(k, 0) | fa_number }})</option>{% endfor %}</select></label>
+    <label>روش <select name="method"><option value="">همه</option>{% for k, v in labels.method.items() %}<option value="{{ k }}" {% if filters.method == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+    <label>نوع <select name="purpose"><option value="">همه</option>{% for k, v in labels.purpose.items() %}<option value="{{ k }}" {% if filters.purpose == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+    <label>نوع سرویس <select name="category"><option value="">همه</option>{% for k, v in labels.category.items() %}<option value="{{ k }}" {% if filters.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+    <label>جست‌وجو <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="شمارهٔ فاکتور، شناسهٔ تلگرام، نام کاربری"></label>
+    <button class="btn" type="submit">اعمال</button>
+  </form>
+</div>
+<div class="card" style="margin-top:16px">
+  <table>
+    <thead><tr><th>فاکتور</th><th>مشتری</th><th>نوع</th><th>روش</th><th>وضعیت</th><th>مبلغ</th><th>سرویس</th><th>اکانت</th><th>رسید</th><th>ثبت</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td dir="ltr">{{ r.invoice_number or r.id }}</td>
+        <td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% if r.username %} <span class="hint" dir="ltr">@{{ r.username }}</span>{% endif %}</td>
+        <td>{{ label(labels.purpose, r.purpose) }}</td><td>{{ label(labels.method, r.method) }}</td>
+        <td>{{ label(labels.status, r.status) }}{% if r.auto_approved %} <span class="hint">خودکار</span>{% endif %}</td>
+        <td>{{ r.amount | toman_amount }}</td><td>{{ r.service or "—" }} <span class="hint">{{ label(labels.category, r.category) if r.category else "" }}</span></td>
+        <td dir="ltr">{{ r.ibsng_username }}</td><td>{{ "دارد" if r.receipt_file_id else "—" }}</td><td>{{ r.created_at | jalali_dt }}</td>
+      </tr>
+    {% else %}<tr><td colspan="10" class="hint">سفارشی با این فیلتر نیست.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% set query_string = "status=" ~ (filters.status or "") ~ "&method=" ~ (filters.method or "") ~ "&purpose=" ~ (filters.purpose or "") ~ "&category=" ~ (filters.category or "") ~ "&q=" ~ (filters.q or "") ~ "&" %}
+  {% include "_pager.html" %}
+</div>
+{% endblock %}

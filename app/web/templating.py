@@ -18,6 +18,7 @@ templates.env.filters.update(
         "toman": fmt.toman_from_rial,
         "jalali": fmt.jalali_date,
         "jalali_dt": fmt.jalali_datetime,
+        "toman_amount": lambda v: f"{fmt.fa_number(int(v))} تومان" if v is not None else "—",
     }
 )
 

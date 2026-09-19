@@ -6,16 +6,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 
-from app.web.deps import current_operator, page
+from app.web.deps import page
 from app.web.nav import NAV
 from app.web.templating import render
 
 router = APIRouter()
-
-
-@router.get("/")
-async def overview(request: Request, operator=Depends(current_operator)):
-    return render(request, "overview.html", page_id="overview", notice=request.query_params.get("notice"))
 
 
 def _placeholder(page_id: str):

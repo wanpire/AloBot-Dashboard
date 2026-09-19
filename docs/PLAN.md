@@ -75,7 +75,7 @@ form is same-origin and the session cookie is SameSite=Lax.
 
 ---
 
-## Phase 2 — AloBot data window (read-only) and the read-only screens
+## Phase 2 — AloBot data window (read-only) and the read-only screens ✅
 
 Goal: every AloBot-backed screen renders from a **copy** of AloBot's database.
 
@@ -113,6 +113,11 @@ Goal: every AloBot-backed screen renders from a **copy** of AloBot's database.
 
 Exit criteria: every screen above renders against the seeded copy with zero
 writes attempted (a test asserts the AloBot engine saw only SELECTs).
+
+**Done 2026-09-20** — 134 tests. The test copy is built from AloBot's own
+migrations (`vendor/alobot`, pinned commit) and read through the SELECT-only
+role, so the suite runs on the exact schema and privileges production will
+have.
 
 ---
 
