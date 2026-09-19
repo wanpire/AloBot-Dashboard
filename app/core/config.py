@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     # the visitor can type themselves.
     trusted_proxy_ip_header: str = ""
 
+    # The in-process sweep loop (outbox, prunes, later the matcher). Off in
+    # tests, which drive sweeps directly. /health reports the loop stale
+    # when it is expected and the heartbeat is older than 90 s.
+    run_sweeps: bool = True
+    sweep_interval_seconds: float = 25.0
+    heartbeat_path: str = "/tmp/alobot-dashboard-heartbeat"
+
     # Reported by /health and the version badge. Set at build/deploy
     # time from the git commit; "dev" when unset.
     app_version: str = "dev"

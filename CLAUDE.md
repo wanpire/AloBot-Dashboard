@@ -209,16 +209,58 @@ docker run -d --rm --name alobot-dashboard-test-db \
 TEST_DATABASE_URL=postgresql+asyncpg://dashboard:dashboard@localhost:5432/dashboard_test make test
 ```
 
-`tests/conftest.py` sets `ENV_NAME=test` and the other required variables
-before anything under `app` is imported. AloBot-backed tests (from Phase 2)
+`tests/conftest.py` sets `ENV_NAME=test`, `RUN_SWEEPS=false` and the other
+required variables before anything under `app` is imported, applies the real
+migrations once per session (never `create_all`), and truncates every table
+after each test. The invariants script runs as part of the suite. AloBot-backed tests (from Phase 2)
 run against a second throwaway database restored from a **copy** of AloBot's
 schema, never against AloBot's own database.
 
 ## Status
 
-Phase 0 (this scaffold): package layout, fail-closed configuration, the two
-engines, Alembic wired to the own database, `/health` reporting own-db /
-alobot-db / writes flag, compose with loopback-only port and an isolated db
-network, the AloBot link script with commit pin, and tests for the config
-guards and the health endpoint. No models, no pages, no ingest yet - see
-`docs/PLAN.md` for what each phase adds and in what order.
+Phase 0 (scaffold): package layout, fail-closed configuration, the two
+engines, Alembic wired to the own database, `/health`, compose with a
+loopback-only port and an isolated db network, the AloBot link script with a
+commit pin.
+
+Phase 1 (foundation) - done, 109 tests:
+
+- Migration `0001`: `operators`, `operator_sessions`, `settings`,
+  `audit_logs` (append-only trigger), `app_events`, `bot_notifications`
+  (dedupe_key UNIQUE, closed status set, partial index on due rows).
+- `app/core/logging.py`: one JSON logger, redaction by key name at any depth,
+  request id on every line; `app/services/events.py` copies WARNING+ into
+  `app_events` through a buffered sink the sweep loop flushes.
+- `app/services/auth.py`: scrypt passwords, RFC 6238 TOTP (tested on the RFC
+  vectors), lockout counted inside the UPDATE, sessions with a 12 h idle
+  window that slides only when stale and a 30 d absolute cap, in-panel
+  password change that keeps the current session; `scripts/create_operator.py`
+  reads the password from stdin.
+- Roles ADMIN / REVIEWER / READ_ONLY. `app/web/nav.py` is the one place that
+  says who sees which section; `page()` and `require_role()` in
+  `app/web/deps.py` enforce it; `tests/test_write_guards.py` walks every
+  write route in the router and asserts READ_ONLY is refused, with a named
+  allowlist for login, logout and password change.
+- `app/web/guards.py`: origin guard on every mutating request (Origin or
+  Referer must match Host; missing is refused outside local/test); per-IP
+  login limit behind `TRUSTED_PROXY_IP_HEADER`, OFF with a boot warning when
+  unset - never "everyone in one bucket".
+- RTL Jinja2/HTMX shell (`base.html`), Persian digit / Jalali filters
+  (`app/web/format.py`, pinned to known calendar points incl. a leap year),
+  version badge; settings page from the typed registry in
+  `app/core/settings_registry.py` (unknown keys refused, every change
+  audited in the same transaction); access page whose self and last-admin
+  guards live inside the UPDATE with the active admins locked first; events
+  page (ADMIN only, no delete control, copy-as-JSON).
+- `app/services/sweeps.py`: registry + loop, one failing sweep never stops
+  the rest, heartbeat file touched after a full cycle; `/health` reports the
+  heartbeat age and turns 503 when the loop is expected and stale.
+- `scripts/verify_invariants.sql` runs on every test run (and fails the suite
+  if the audit trigger is dropped); `scripts/restore_drill.sh` dumps,
+  restores beside the live db, checks the migration head, runs the
+  invariants, drops the copy - verified inside the image against Postgres 16
+  (the image pins `postgresql-client-16` because a 17 client's dump broke a
+  16 restore).
+
+Next: Phase 2 in `docs/PLAN.md` - the read-only window onto a COPY of
+AloBot's database.

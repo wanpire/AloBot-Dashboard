@@ -18,7 +18,7 @@ script with commit pin, config and health tests, the brief, this plan.
 
 ---
 
-## Phase 1 — Foundation: identity, safety rails, first screen
+## Phase 1 — Foundation: identity, safety rails, first screen ✅
 
 Goal: an operator can log in to an empty but real dashboard, and every
 cross-cutting guarantee the later phases rely on already exists.
@@ -67,6 +67,11 @@ cross-cutting guarantee the later phases rely on already exists.
 
 Exit criteria: login works in a real browser, every write route is guarded by
 the test, logs are JSON with no secret leakage, restore drill passes.
+
+**Done 2026-09-20** — 109 tests; restore drill verified inside the image.
+One deviation: task 3's CLI and task 10's heartbeat both landed; task 5's
+CSRF is the origin guard alone (no token), which is sufficient because every
+form is same-origin and the session cookie is SameSite=Lax.
 
 ---
 

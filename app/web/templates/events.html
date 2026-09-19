@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <form method="get" action="/events" class="filters">
+    <label>سطح
+      <select name="level"><option value="">همه</option>{% for l in levels %}<option value="{{ l }}" {% if l == level %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+    </label>
+    <label>جست‌وجو <input type="text" name="q" value="{{ q }}" placeholder="نام رویداد، خطا، یا هر مقداری"></label>
+    <label>بازه (ساعت) <input type="number" name="hours" value="{{ hours }}" min="1" max="720"></label>
+    <button class="btn" type="submit">اعمال</button>
+  </form>
+</div>
+<div class="card" style="margin-top:16px">
+  <table>
+    <thead><tr><th>زمان</th><th>سطح</th><th>رویداد</th><th>ردیابی</th><th></th></tr></thead>
+    <tbody>
+    {% for row, blob in items %}
+      <tr>
+        <td>{{ row.at | jalali_dt }}</td>
+        <td><span class="badge">{{ row.level }}</span></td>
+        <td>{{ row.event }}{% if row.err %} <span class="hint">— {{ row.err[:120] }}</span>{% endif %}</td>
+        <td dir="ltr">{{ row.request_id or "" }}</td>
+        <td>
+          <details>
+            <summary>جزئیات</summary>
+            <pre dir="ltr" data-json="{{ blob }}">{{ blob }}</pre>
+            <button class="btn" type="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.dataset.json)">کپی JSON</button>
+          </details>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="hint">رویدادی در این بازه نیست.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

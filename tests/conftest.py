@@ -18,6 +18,7 @@ os.environ.setdefault("ENV_NAME", "test")
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ.setdefault("SESSION_SECRET", "test-secret-test-secret-test-secret-0000")
 os.environ.setdefault("ALOBOT_DATABASE_URL", "")
+os.environ.setdefault("RUN_SWEEPS", "false")
 
 
 def alembic(*args: str) -> subprocess.CompletedProcess:

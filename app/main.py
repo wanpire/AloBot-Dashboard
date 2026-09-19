@@ -7,6 +7,7 @@ actually reach. Everything else arrives phase by phase - see `docs/PLAN.md`.
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -19,10 +20,13 @@ from sqlalchemy import text
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import alobot_engine, engine
+from app.services import sweeps
+from app.services.events import install_event_sink
 from app.web.deps import Unauthenticated
 from app.web.guards import OriginGuardMiddleware, RequestIdMiddleware
 from app.web.routes import access as access_routes
 from app.web.routes import auth as auth_routes
+from app.web.routes import events as event_routes
 from app.web.routes import pages as page_routes
 from app.web.routes import settings as settings_routes
 from app.web.templating import render
@@ -39,7 +43,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("boot.alobot_db_unconfigured", detail="AloBot-backed pages are disabled")
     if not settings.trusted_proxy_ip_header:
         log.warning("boot.no_trusted_proxy_header", detail="per-IP login rate limit is OFF")
+    install_event_sink()
+    runner = None
+    if settings.run_sweeps:
+        runner = asyncio.create_task(
+            sweeps.run_forever(sweeps.registry, settings.heartbeat_path, settings.sweep_interval_seconds)
+        )
     yield
+    if runner is not None:
+        runner.cancel()
     await engine.dispose()
     if alobot_engine is not None:
         await alobot_engine.dispose()
@@ -52,6 +64,7 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "web" / "
 app.include_router(auth_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(access_routes.router)
+app.include_router(event_routes.router)
 app.include_router(page_routes.router)  # placeholders last: specific pages above win
 
 
@@ -89,12 +102,15 @@ async def health() -> JSONResponse:
     settings = get_settings()
     own = await _ping(engine)
     alobot = "unconfigured" if alobot_engine is None else await _ping(alobot_engine)
+    age = sweeps.heartbeat_age(settings.heartbeat_path)
+    sweeps_ok = (not settings.run_sweeps) or (age is not None and age <= sweeps.HEARTBEAT_STALE_SECONDS)
     body = {
-        "ok": own == "ok",
+        "ok": own == "ok" and sweeps_ok,
         "env": settings.env_name.value,
         "version": settings.app_version,
         "db": own,
         "alobot_db": alobot,
         "alobot_db_writes_enabled": settings.alobot_db_writes_enabled,
+        "sweeps": {"enabled": settings.run_sweeps, "heartbeat_age_seconds": age, "ok": sweeps_ok},
     }
     return JSONResponse(body, status_code=200 if body["ok"] else 503)
