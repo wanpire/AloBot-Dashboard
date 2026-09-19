@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">تنظیمات ذخیره شد.</div>{% endif %}
+<div class="card">
+  <form method="post" action="/settings">
+    {% for spec in specs %}
+    {% set value = values[(spec.scope, spec.key)] %}
+    <label>{{ spec.label }}
+      {% if spec.kind == "bool" %}
+        <input type="checkbox" name="{{ spec.form_name }}" value="1" {% if value %}checked{% endif %}>
+      {% elif spec.kind == "int" %}
+        <input type="number" name="{{ spec.form_name }}" value="{{ value if value is not none else '' }}" min="{{ spec.min }}" max="{{ spec.max }}" required>
+      {% elif spec.kind == "chat_id" %}
+        <input type="text" name="{{ spec.form_name }}" value="{{ value if value is not none else '' }}" inputmode="numeric" pattern="-?[0-9]*">
+      {% else %}
+        <input type="text" name="{{ spec.form_name }}" value="{{ value or '' }}">
+      {% endif %}
+      <span class="hint">{{ spec.hint }}</span>
+    </label>
+    {% endfor %}
+    {% if operator.role == "ADMIN" %}<button class="btn btn--primary" type="submit">ذخیره</button>{% endif %}
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% if page_id %}{{ page_label(page_id) }} · {% endif %}داشبورد آلو{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body class="{% if operator %}shell{% else %}bare{% endif %}">
+{% if operator %}
+<aside class="sidebar">
+  <div class="brand">داشبورد آلو</div>
+  <nav>
+    {% for label, items in nav %}
+    <div class="nav-group">
+      <div class="nav-group__label">{{ label }}</div>
+      {% for item in items %}
+      <a href="/{{ item.id }}" class="nav-item{% if item.id == page_id %} is-active{% endif %}">{{ item.label }}</a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </nav>
+  <div class="sidebar__foot">
+    <span class="badge badge--env">{{ env_name }}</span>
+    <span class="badge" title="نسخهٔ در حال اجرا">{{ app_version[:12] }}</span>
+  </div>
+</aside>
+<div class="main">
+  <header class="topbar">
+    <div class="crumb">{% if page_id %}{{ page_label(page_id) }}{% else %}{% block heading %}{% endblock %}{% endif %}</div>
+    <div class="who">
+      <span>{{ operator.display_name }}</span>
+      <span class="badge">{{ operator.role }}</span>
+      <a href="/password" class="link">تغییر رمز</a>
+      <form method="post" action="/logout" class="inline"><button class="btn btn--ghost" type="submit">خروج</button></form>
+    </div>
+  </header>
+  <main class="content">
+    {% if notice %}<div class="flash flash--ok">{{ notice }}</div>{% endif %}
+    {% if error %}<div class="flash flash--err">{{ error }}</div>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+<main class="bare__main">
+  {% block bare %}{% endblock %}
+</main>
+{% endif %}
+</body>
+</html>

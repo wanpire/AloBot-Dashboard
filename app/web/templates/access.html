@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "created" %}<div class="flash flash--ok">اپراتور ساخته شد.</div>{% elif notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
+<div class="card">
+  <table>
+    <thead><tr><th>ایمیل</th><th>نام</th><th>نقش</th><th>وضعیت</th><th>دومرحله‌ای</th><th></th></tr></thead>
+    <tbody>
+    {% for o in operators %}
+      <tr>
+        <td dir="ltr">{{ o.email }}</td>
+        <td>{{ o.display_name }}</td>
+        <td>
+          {% if o.id != operator.id %}
+          <form method="post" action="/access/{{ o.id }}/role" class="inline">
+            <select name="role" onchange="this.form.submit()">
+              {% for r in roles %}<option value="{{ r }}" {% if r == o.role %}selected{% endif %}>{{ r }}</option>{% endfor %}
+            </select>
+          </form>
+          {% else %}<span class="badge">{{ o.role }}</span> <span class="hint">(شما)</span>{% endif %}
+        </td>
+        <td>{{ "فعال" if o.is_active else "غیرفعال" }}</td>
+        <td>{{ "فعال" if o.totp_confirmed_at else "—" }}</td>
+        <td>
+          {% if o.id != operator.id %}
+          <form method="post" action="/access/{{ o.id }}/active" class="inline">
+            <input type="hidden" name="active" value="{{ '0' if o.is_active else '1' }}">
+            <button class="btn" type="submit">{{ "غیرفعال کن" if o.is_active else "فعال کن" }}</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="card" style="margin-top:16px">
+  <h2>اپراتور جدید</h2>
+  <form method="post" action="/access">
+    <label>ایمیل <input type="email" name="email" required></label>
+    <label>نام نمایشی <input type="text" name="display_name"></label>
+    <label>رمز عبور اولیه <input type="password" name="password" minlength="12" required autocomplete="new-password"></label>
+    <label>نقش
+      <select name="role">{% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select>
+      <span class="hint">ADMIN همه‌چیز · REVIEWER بررسی پرداخت‌ها · READ_ONLY فقط خواندن</span>
+    </label>
+    <button class="btn btn--primary" type="submit">ساختن</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "password_changed" %}<div class="flash flash--ok">رمز عبور تغییر کرد.</div>{% endif %}
+<div class="grid grid--cards">
+  <div class="card"><div class="stat__label">پرداخت‌های در انتظار</div><div class="stat__value">{{ 0 | fa_number }}</div></div>
+  <div class="card"><div class="stat__label">تراکنش‌های بانکی امروز</div><div class="stat__value">{{ 0 | fa_number }}</div></div>
+  <div class="card"><div class="stat__label">دستگاه‌های فعال</div><div class="stat__value">{{ 0 | fa_number }}</div></div>
+</div>
+<p class="hint">این نماها با فازهای بعدی پر می‌شوند؛ عددهای بالا هنوز به داده‌ای وصل نیستند.</p>
+{% endblock %}

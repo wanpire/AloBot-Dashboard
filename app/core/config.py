@@ -53,6 +53,13 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # Name of the header the reverse proxy OVERWRITES with the client's real
+    # address (nginx: `proxy_set_header X-Real-IP $remote_addr`). Blank means
+    # "no proxy tells us the address", and the per-IP login limiter is OFF
+    # with a boot warning - never "everyone in one bucket" and never a header
+    # the visitor can type themselves.
+    trusted_proxy_ip_header: str = ""
+
     # Reported by /health and the version badge. Set at build/deploy
     # time from the git commit; "dev" when unset.
     app_version: str = "dev"
