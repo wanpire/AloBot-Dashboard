@@ -107,3 +107,27 @@ async def test_tab_counts_sort_claims_into_the_queues():
         await review.park(s, actor, parked, now=NOW)
         counts = await review.tab_counts(s)
     assert counts["review"] == 1 and counts["waiting"] == 1 and counts["parked"] == 1 and counts["all"] == 3
+
+
+async def test_a_credit_that_already_settled_a_claim_is_no_longer_offered_to_another():
+    """The database refuses the second settlement, so the screen must not
+    invite it: the listing marks the credit as spent and the route still
+    refuses if someone posts the form anyway."""
+    acct = await _account_with_card()
+    first = await _claim(account_id=acct, alobot_id=1)
+    second = await _claim(account_id=acct, alobot_id=2, at=NOW + dt.timedelta(minutes=1))
+    tx = await _credit()
+    actor = await make_operator()
+    from app.services import settle
+
+    async with async_session_maker() as s:
+        await settle.settle(s, now=NOW + dt.timedelta(minutes=3))  # ambiguous: both suggested
+        listing = await review.list_claims(s, tab="review")
+        assert listing["spent_transactions"] == set(), "nothing is settled yet"
+        await review.approve_with_transaction(s, actor, first, tx, now=NOW + dt.timedelta(minutes=4))
+
+    async with async_session_maker() as s:
+        listing = await review.list_claims(s, tab="review")
+        assert listing["spent_transactions"] == {tx}
+        with pytest.raises(review.ReviewError, match="تسویه"):
+            await review.approve_with_transaction(s, actor, second, tx, now=NOW + dt.timedelta(minutes=5))

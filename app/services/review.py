@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import FinancialAccount, PaymentClaim, ReconciliationMatch, TransactionCandidate
+from app.models.claims import SETTLING_MATCH_STATUSES
 from app.services import outbox
 from app.services import settings as settings_service
 from app.services.audit import audit_row
@@ -205,4 +206,17 @@ async def list_claims(session: AsyncSession, *, tab: str = "review", q: str | No
     for m, t in matches:
         by_claim[m.claim_id].append((m, t))
     rows = [{"claim": c, "matches": by_claim[c.id], "account": accounts.get(c.target_account_id)} for c in claims]
-    return {"rows": rows, "total": total, "page": page, "page_size": PAGE_SIZE}
+    # A credit that already settled a claim cannot settle another one: the
+    # partial unique index refuses it. The screen has to know that too, or it
+    # offers a button whose only outcome is a refusal.
+    tx_ids = {t.id for _, t in matches}
+    spent = set(
+        (
+            await session.execute(
+                select(ReconciliationMatch.transaction_id).where(
+                    ReconciliationMatch.transaction_id.in_(tx_ids), ReconciliationMatch.status.in_(SETTLING_MATCH_STATUSES)
+                )
+            )
+        ).scalars().all()
+    ) if tx_ids else set()
+    return {"rows": rows, "total": total, "page": page, "page_size": PAGE_SIZE, "spent_transactions": spent}

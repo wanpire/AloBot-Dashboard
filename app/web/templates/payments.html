@@ -42,12 +42,12 @@
         </td>
         <td>{{ "دارد" if c.receipt_file_id else "ندارد" }}<br><span class="hint">تصویر در فاز یکپارچه‌سازی</span></td>
         <td>
-          <details><summary>بررسی</summary>
+          <details {% if tab == "review" %}open{% endif %}><summary>بررسی</summary>
             {% if r.matches %}
             <table class="cands"><thead><tr><th>واریز</th><th>مبلغ</th><th>زمان</th><th>پیگیری</th><th>وضعیت</th><th></th></tr></thead><tbody>
             {% for m, t in r.matches %}
               <tr><td>{{ t.id | fa_number }}</td><td>{{ t.amount_irr | toman }}</td><td>{{ t.bank_timestamp | jalali_dt }}</td><td dir="ltr">{{ t.reference or "—" }}</td><td dir="ltr">{{ m.status }}</td>
-                <td>{% if operator.role in ("ADMIN", "REVIEWER") and c.status in ("PENDING", "FULFILLED_UNRECONCILED") and m.status == "SUGGESTED" %}<form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="inline"><input type="hidden" name="transaction_id" value="{{ t.id }}"><button class="btn btn--primary" type="submit">تایید با این واریز</button></form>{% endif %}</td></tr>
+                <td>{% if t.id in spent_transactions %}<span class="hint">این واریز پیش‌تر خرج پرداخت دیگری شده</span>{% elif operator.role in ("ADMIN", "REVIEWER") and c.status in ("PENDING", "FULFILLED_UNRECONCILED") and m.status == "SUGGESTED" %}<form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="inline"><input type="hidden" name="transaction_id" value="{{ t.id }}"><button class="btn btn--primary" type="submit">تایید با این واریز</button></form>{% endif %}</td></tr>
             {% endfor %}</tbody></table>
             {% else %}<p class="hint">هیچ واریز نامزدی ندارد.</p>{% endif %}
             {% if operator.role in ("ADMIN", "REVIEWER") %}

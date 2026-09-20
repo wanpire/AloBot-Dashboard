@@ -90,6 +90,12 @@ def alobot_copy_schema():
     async def prepare():
         admin = await asyncpg.connect(TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://").rsplit("/", 1)[0] + "/postgres")
         try:
+            # An aborted earlier run can leave a connection behind, and one
+            # stale backend would otherwise fail the whole session at setup.
+            await admin.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
+                ALOBOT_COPY_DB,
+            )
             await admin.execute(f'DROP DATABASE IF EXISTS "{ALOBOT_COPY_DB}"')
             await admin.execute(f'CREATE DATABASE "{ALOBOT_COPY_DB}"')
             for role, password in (("dashboard_ro", "ro"), ("dashboard_rw", "rw")):
