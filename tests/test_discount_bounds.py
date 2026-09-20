@@ -46,7 +46,21 @@ async def with_columns(seeded):
     await link.connect()
 
 
-async def test_without_the_alobot_migration_the_fields_are_not_offered(seeded):
+@pytest.fixture
+async def without_columns(seeded):
+    """An AloBot that has not had the migration applied. Stated explicitly by
+    dropping the columns rather than assumed from whatever `vendor/alobot`
+    happens to be checked out at: once that migration merged, the copy grew
+    the columns and this test silently became a test of nothing."""
+    await alobot_admin_execute(
+        "ALTER TABLE discount_codes DROP COLUMN IF EXISTS expires_at",
+        "ALTER TABLE discount_codes DROP COLUMN IF EXISTS per_user_limit",
+    )
+    await link.connect()
+    yield
+
+
+async def test_without_the_alobot_migration_the_fields_are_not_offered(without_columns):
     assert discount_writes.bounds_available() is False
     c = await logged_in("ADMIN")
     async with c:

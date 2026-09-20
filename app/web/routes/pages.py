@@ -5,7 +5,7 @@ in later phases replace the placeholder with their own router, and the
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services import review
@@ -14,6 +14,16 @@ from app.web.nav import NAV
 from app.web.templating import render
 
 router = APIRouter()
+
+
+@router.get("/overview")
+async def overview_alias(operator=Depends(current_operator)) -> RedirectResponse:
+    """The overview lives at the root, because that is where login lands and
+    what a bookmark of the panel should be. The sidebar builds every link from
+    the section id, so this id needs somewhere to go: it sends people to the
+    canonical address rather than answering a second copy of the page at a
+    second URL."""
+    return RedirectResponse("/", status_code=308)
 
 
 @router.get("/bell")

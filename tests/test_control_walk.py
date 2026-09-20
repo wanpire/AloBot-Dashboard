@@ -13,6 +13,7 @@ Two different questions, and the second is the one route tests cannot answer:
 
 from __future__ import annotations
 
+import re
 from html.parser import HTMLParser
 
 import pytest
@@ -142,3 +143,29 @@ async def test_a_reviewer_can_still_do_the_job_the_role_exists_for(seeded):
         assert (await c.get("/transactions")).status_code == 200
         blocked = await c.post("/payments/continuity", data={"minutes": "60", "reason": "x"}, headers={"Origin": "http://test"})
     assert blocked.status_code == 403
+
+
+def links_in(html: str) -> list[str]:
+    """Every sidebar destination, exactly as the page offers it."""
+    return re.findall(r'href="(/[^"]*)" class="nav-item', html)
+
+
+async def test_every_link_the_sidebar_draws_actually_opens(seeded):
+    """The walks above ask the route table where a section lives, which is the
+    same assumption the routes make, so both agreed and both were wrong: the
+    sidebar's own first link pointed at /overview, which had no route at all.
+    This follows the hrefs the page really renders instead."""
+    c = await logged_in("ADMIN")
+    async with c:
+        home = await c.get("/")
+        assert home.status_code == 200
+        links = links_in(home.text)
+        assert len(links) > 10, f"the sidebar rendered almost nothing: {links}"
+        broken = []
+        for href in links:
+            # Follow redirects: a link that redirects into a 404, or into a
+            # loop, is just as broken as one that 404s outright.
+            answer = await c.get(href, follow_redirects=True)
+            if answer.status_code >= 400:
+                broken.append(f"{href} -> {answer.status_code}")
+    assert not broken, "the sidebar offers links that do not open:\n" + "\n".join(broken)
