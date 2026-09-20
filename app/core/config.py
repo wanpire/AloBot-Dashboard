@@ -86,6 +86,15 @@ class Settings(BaseSettings):
     # AloBot's production token only ever lands here in Phase 7.
     telegram_bot_token: str = ""
 
+    # AloBot's OWN bot token. Needed for the two things only that bot can do:
+    # fetch a receipt photo by the file_id AloBot stored, and message a
+    # customer who has only ever spoken to AloBot's bot. Treated with the same
+    # care as AloBot's own copy - never logged (the logger redacts by key
+    # name), never shown on a settings screen, never sent anywhere but
+    # api.telegram.org. Blank means receipts cannot be shown and customer
+    # messages cannot be sent, and both say so rather than failing oddly.
+    alobot_bot_token: str = ""
+
     # The in-process sweep loop (outbox, prunes, later the matcher). Off in
     # tests, which drive sweeps directly. /health reports the loop stale
     # when it is expected and the heartbeat is older than 90 s.

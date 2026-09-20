@@ -40,7 +40,15 @@
           {% if c.alobot_status != "pending" %}<br><span class="hint">آلوبات: {{ c.alobot_status }}</span>{% endif %}
           {% if c.messaged_template %}<br><span class="hint">پیام: {{ templates[c.messaged_template][0] }}</span>{% endif %}
         </td>
-        <td>{{ "دارد" if c.receipt_file_id else "ندارد" }}<br><span class="hint">تصویر در فاز یکپارچه‌سازی</span></td>
+        <td>
+          {% if c.receipt_file_id %}
+            {% if receipts_enabled %}
+            <a href="/payments/{{ c.id }}/receipt" target="_blank" rel="noopener" title="اندازهٔ کامل">
+              <img src="/payments/{{ c.id }}/receipt" alt="رسید پرداخت" loading="lazy" class="receipt">
+            </a>
+            {% else %}دارد<br><span class="hint">برای نمایش تصویر ALOBOT_BOT_TOKEN لازم است</span>{% endif %}
+          {% else %}ندارد{% endif %}
+        </td>
         <td>
           <details {% if tab == "review" %}open{% endif %}><summary>بررسی</summary>
             {% if r.matches %}

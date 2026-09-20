@@ -76,3 +76,19 @@ def test_stdlib_loggers_are_routed_through_the_same_formatter():
     rec = _last_line(stream)
     assert rec["event"] == "plain text"
     assert rec["level"] == "WARNING"
+
+
+def test_a_telegram_bot_token_never_survives_into_a_rendered_log_line():
+    """The token lives inside the URL, and libraries log URLs. Redaction by
+    key name cannot help there, so the rendered message is scrubbed by shape
+    as well - and the loggers that would write such a line are silenced."""
+    import logging as stdlib_logging
+
+    from app.core.logging import scrub
+
+    leaked = 'HTTP Request: GET https://api.telegram.org/bot777:REAL-TOKEN/getFile?file_id=x "200 OK"'
+    assert "REAL-TOKEN" not in scrub(leaked)
+    assert "/bot[redacted]" in scrub(leaked)
+    assert scrub("nothing to see here") == "nothing to see here"
+    for noisy in ("httpx", "httpcore"):
+        assert stdlib_logging.getLogger(noisy).level >= stdlib_logging.WARNING

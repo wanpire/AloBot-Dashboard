@@ -3,11 +3,13 @@ from __future__ import annotations
 import datetime as dt
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.alobot.labels import PURPOSE_LABELS, label
-from app.services import continuity, finance, review
+from app.core.config import get_settings
+from app.models import PaymentClaim
+from app.services import continuity, finance, receipts, review
 from app.web.deps import get_db, page, require_role
 from app.web.templating import render
 
@@ -44,7 +46,11 @@ async def _page(request: Request, db: AsyncSession, status_code: int = 200, **ct
     return render(
         request, "payments.html", page_id="payments", status_code=status_code, tab=tab, tabs=review.TAB_LABELS, counts=await review.tab_counts(db),
         q=q or "", purpose=purpose, purposes=PURPOSE_LABELS, label=label, reasons=REASON_LABELS, templates=review.REVIEW_TEMPLATES,
-        continuity_state=await continuity.state(db, _now()), **data, **ctx,
+        continuity_state=await continuity.state(db, _now()),
+        # Without AloBot's token a receipt cannot be fetched at all, so the
+        # page says so rather than drawing an image that will not load.
+        receipts_enabled=bool(get_settings().alobot_bot_token),
+        **data, **ctx,
     )
 
 
@@ -60,6 +66,28 @@ async def _act(request: Request, db: AsyncSession, fn, *args):
         return await _page(request, db, 400, error=str(exc))
     tab = request.query_params.get("tab") or "review"
     return RedirectResponse(f"/payments?tab={tab}&notice=saved", status_code=303)
+
+
+@router.get("/payments/{claim_id}/receipt")
+async def receipt(claim_id: int, operator=Depends(DECIDER), db: AsyncSession = Depends(get_db)):
+    """The receipt photo itself. The route takes a payment, never a file id:
+    otherwise the panel would be a way to read any file AloBot's bot has ever
+    been sent. Nothing is stored; see app/services/receipts.py."""
+    claim = await db.get(PaymentClaim, claim_id)
+    if claim is None or not claim.receipt_file_id:
+        return PlainTextResponse("این پرداخت رسیدی ندارد.", status_code=404)
+    try:
+        found = await receipts.fetch(claim.receipt_file_id)
+    except PermissionError as exc:
+        return PlainTextResponse(str(exc), status_code=503)
+    except receipts.ReceiptError as exc:
+        return PlainTextResponse(str(exc), status_code=502)
+    return Response(
+        found.content,
+        media_type=found.content_type,
+        # A customer's bank receipt: the browser may hold it, nothing else may.
+        headers={"cache-control": "private, max-age=300", "content-disposition": "inline"},
+    )
 
 
 @router.post("/payments/{claim_id}/approve")

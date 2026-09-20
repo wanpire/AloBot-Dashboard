@@ -5,6 +5,13 @@ log call: a key whose lowercase name contains one of `DENY_SUBSTRINGS` is
 replaced with "[redacted]". Values are not scanned, because a value scanner
 has to know every secret to find it and this one does not have to.
 
+There is one exception, and it exists because a library forced it. A Telegram
+bot token lives inside the URL, and httpx logs every request URL at INFO. The
+token is therefore scrubbed out of the rendered message text by shape - the
+`/bot<token>/` segment - no matter which logger produced the line. This is a
+value scanner, but for a pattern that is unmistakable and that no legitimate
+log line needs to carry.
+
 The stdlib root logger is routed through the same formatter so third-party
 lines (uvicorn, sqlalchemy) come out as JSON too, with the message as the
 event name.
@@ -16,6 +23,7 @@ import contextvars
 import datetime as dt
 import json
 import logging
+import re
 import sys
 import traceback
 from typing import Any, TextIO
@@ -34,6 +42,25 @@ DENY_SUBSTRINGS = (
     "apikey",
 )
 REDACTED = "[redacted]"
+# https://api.telegram.org/bot<token>/method and .../file/bot<token>/<path>
+_BOT_TOKEN = re.compile(r"/bot\d+:[A-Za-z0-9_-]+")
+
+
+def scrub(message: str) -> str:
+    return _BOT_TOKEN.sub("/bot" + REDACTED, message)
+
+
+def _silence_url_loggers() -> None:
+    """httpx logs every request URL at INFO and a bot token lives inside that
+    URL. The record would carry the token to ANY handler, including one this
+    project did not install, so the line is never created. Applied on import
+    as well as in configure_logging, because the guarantee should not depend
+    on which entry point ran."""
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
+
+_silence_url_loggers()
 
 _request_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("request_id", default=None)
 
@@ -72,7 +99,7 @@ class JsonFormatter(logging.Formatter):
             "level": record.levelname,
             "service": self.service,
             "logger": record.name,
-            "event": record.getMessage(),
+            "event": scrub(record.getMessage()),
         }
         request_id = _request_id.get()
         if request_id:
@@ -127,6 +154,13 @@ def configure_logging(level: str = "INFO", stream: TextIO | None = None, service
     handler.setFormatter(JsonFormatter(service))
     root.addHandler(handler)
     root.setLevel(level.upper())
+    # httpx logs every request URL at INFO, and a Telegram bot token lives
+    # INSIDE that URL. The formatter scrubs the token out of anything it
+    # renders, but the safest line is the one never written: the record itself
+    # would still carry the token for any other handler, so this logger is
+    # raised to WARNING and the line is never created. Nothing is lost - the
+    # calls this project makes log their own outcome.
+    _silence_url_loggers()
     # uvicorn installs its own handlers; fold them into ours.
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         lg = logging.getLogger(name)
