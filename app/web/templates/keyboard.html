@@ -6,27 +6,33 @@
 <div class="card">
   <h2>{{ m.menu.label }} {% if m.customised %}<span class="badge">سفارشی</span>{% else %}<span class="hint">پیش‌فرض</span>{% endif %}</h2>
   <p class="hint">{{ m.menu.hint }}</p>
+  {% if operator.role != "ADMIN" %}
+  {# Read-only rendering: see the note in texts.html. #}
+  <table>
+    <thead><tr><th>دکمه</th><th>عنوان</th><th>رنگ</th><th>ردیف</th></tr></thead>
+    <tbody>{% for b in m.buttons %}<tr><td dir="ltr" class="hint">{{ b.action }}</td><td>{{ b.label }}</td><td>{{ {"primary": "آبی", "success": "سبز", "danger": "قرمز"}.get(b.style, "پیش‌فرض") }}</td><td>{{ b.row | fa_number }}</td></tr>{% endfor %}</tbody>
+  </table>
+  {% else %}
   <form method="post" action="/keyboard/{{ menu_id }}">
     <table>
       <thead><tr><th>نمایش</th><th>دکمه</th><th>عنوان</th><th>رنگ</th><th>ردیف</th></tr></thead>
       <tbody>
       {% for b in m.menu.buttons %}{% set live = (m.buttons | selectattr("action", "equalto", b.action) | first) %}
         <tr>
-          <td><input type="checkbox" name="show_{{ b.action }}" value="1" {% if live %}checked{% endif %} {% if b.required %}checked disabled{% endif %} {% if operator.role != "ADMIN" %}disabled{% endif %}>{% if b.required %}<input type="hidden" name="show_{{ b.action }}" value="1"><span class="badge">الزامی</span>{% endif %}</td>
+          <td><input type="checkbox" name="show_{{ b.action }}" value="1" {% if live %}checked{% endif %} {% if b.required %}checked disabled{% endif %}>{% if b.required %}<input type="hidden" name="show_{{ b.action }}" value="1"><span class="badge">الزامی</span>{% endif %}</td>
           <td dir="ltr" class="hint">{{ b.action }}<br><span class="hint">{{ b.hint }}</span></td>
-          <td><input type="text" name="label_{{ b.action }}" value="{{ live.label if live else b.label }}" maxlength="64" {% if operator.role != "ADMIN" %}disabled{% endif %}></td>
-          <td><select name="style_{{ b.action }}" {% if operator.role != "ADMIN" %}disabled{% endif %}>{% for s in styles %}<option value="{{ s or '' }}" {% if (live.style if live else b.style) == s %}selected{% endif %}>{{ {"primary": "آبی", "success": "سبز", "danger": "قرمز"}.get(s, "پیش‌فرض") }}</option>{% endfor %}</select></td>
-          <td><input type="number" name="row_{{ b.action }}" value="{{ live.row if live else b.row }}" min="1" max="9" style="width:5rem" {% if operator.role != "ADMIN" %}disabled{% endif %}></td>
+          <td><input type="text" name="label_{{ b.action }}" value="{{ live.label if live else b.label }}" maxlength="64"></td>
+          <td><select name="style_{{ b.action }}">{% for s in styles %}<option value="{{ s or '' }}" {% if (live.style if live else b.style) == s %}selected{% endif %}>{{ {"primary": "آبی", "success": "سبز", "danger": "قرمز"}.get(s, "پیش‌فرض") }}</option>{% endfor %}</select></td>
+          <td><input type="number" name="row_{{ b.action }}" value="{{ live.row if live else b.row }}" min="1" max="9" style="width:5rem"></td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
     <p class="hint">دکمه‌های الزامی را می‌توان تغییر نام و جابه‌جا کرد، ولی نه برداشت: بدون آن‌ها مشتری در ربات به بن‌بست می‌خورد.</p>
-    {% if operator.role == "ADMIN" %}
     <button class="btn btn--primary" type="submit">ذخیره</button>
     {% if m.customised %}<button class="btn" type="submit" name="reset" value="1">بازگشت به پیش‌فرض</button>{% endif %}
-    {% endif %}
   </form>
+  {% endif %}
 </div>
 {% endfor %}
 {% endblock %}

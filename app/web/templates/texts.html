@@ -6,13 +6,17 @@
 <div class="card" style="margin-bottom:12px">
   <h3>{{ spec.label }} <span class="hint" dir="ltr">{{ spec.key }}</span></h3>
   <p class="hint">{{ spec.hint }}{% if spec.placeholders %} جای‌گذارها که باید بمانند: <span dir="ltr">{{ spec.placeholders | join(" ") }}</span>{% endif %}</p>
+  {% if operator.role == "ADMIN" %}
   <form method="post" action="/texts/{{ spec.key }}">
-    <textarea name="value" rows="3" dir="auto" {% if operator.role != "ADMIN" %}disabled{% endif %}>{{ values[spec.key] }}</textarea>
-    {% if operator.role == "ADMIN" %}
+    <textarea name="value" rows="3" dir="auto">{{ values[spec.key] }}</textarea>
     <button class="btn btn--primary" type="submit">ذخیره</button>
     {% if values[spec.key] != spec.default %}<button class="btn" type="submit" name="reset" value="1">بازگشت به پیش‌فرض</button>{% endif %}
-    {% endif %}
   </form>
+  {% else %}
+  {# No form at all for a role that may not save: a control that is drawn and
+     then refused reads as broken rather than as a boundary. #}
+  <pre dir="auto" class="readonly">{{ values[spec.key] }}</pre>
+  {% endif %}
 </div>
 {% endfor %}
 {% endblock %}

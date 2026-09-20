@@ -40,3 +40,4 @@ details>summary{cursor:pointer;color:var(--accent)}details form{margin:6px 0}
 textarea{font:inherit}
 .badge--count{background:var(--err);color:#fff}.bell{text-decoration:none}.flash--warn{background:#fef3c7;color:#92400e}
 .payment-row td{vertical-align:top}.cands td{padding:4px 8px}
+.readonly{background:#f3f4f6;padding:10px;border-radius:6px;white-space:pre-wrap;margin:0}
