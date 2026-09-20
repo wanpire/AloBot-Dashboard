@@ -32,6 +32,7 @@ def render(request: Request, name: str, status_code: int = 200, **context: Any):
         "page_id": context.pop("page_id", None),
         "app_version": settings.app_version,
         "env_name": settings.env_name.value,
+        "bell_poll_seconds": settings.bell_poll_seconds,
         "page_label": page_label,
         "badges": getattr(request.state, "badges", {}),
         "continuity": getattr(request.state, "continuity", None),

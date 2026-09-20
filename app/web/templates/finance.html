@@ -13,4 +13,8 @@
 <div class="card"><h2>واریز به هر حساب</h2>
   <table><thead><tr><th>حساب</th><th>تعداد</th><th>مبلغ</th></tr></thead><tbody>{% for name, n, total in by_account %}<tr><td>{{ name }}</td><td>{{ n | fa_number }}</td><td>{{ total | toman }}</td></tr>{% else %}<tr><td colspan="3" class="hint">واریزی در این بازه نیست.</td></tr>{% endfor %}</tbody></table>
 </div>
+<div class="card"><h2>موجودی به روایت بانک</h2>
+  <p class="hint">آخرین موجودی که خود بانک در پیامک گزارش کرده. این عدد را با ستون «واریز به هر حساب» بسنجید؛ اختلاف یعنی پولی جابه‌جا شده که از این مسیر نگذشته.</p>
+  <table><thead><tr><th>حساب</th><th>موجودی</th><th>زمان گزارش</th></tr></thead><tbody>{% for name, balance, at in balances %}<tr><td>{{ name }}</td><td>{{ balance | toman }}</td><td>{{ at | jalali_dt }}</td></tr>{% else %}<tr><td colspan="3" class="hint">هیچ پیامکی تا کنون موجودی گزارش نکرده.</td></tr>{% endfor %}</tbody></table>
+</div>
 {% endblock %}

@@ -29,6 +29,25 @@ async def summary(session: AsyncSession, since: dt.datetime) -> dict[str, Any]:
     ).all()
     unmatched = (await session.execute(select(func.count(), func.coalesce(func.sum(T.amount_irr), 0)).where(credits, T.id.not_in(settling)))).one()
     declined = (await session.execute(select(func.count(), func.coalesce(func.sum(T.amount_irr), 0)).where(T.direction == "CREDIT", T.disposition == "DECLINED_INCOME", T.bank_timestamp >= since))).one()
+    # The bank's own number, per account: the balance carried by the most
+    # recent message that reported one. Income the dashboard counted is only
+    # half the picture - a discrepancy is only visible against this.
+    latest = (
+        select(T.account_id, func.max(T.bank_timestamp).label("at"))
+        .where(T.account_id.is_not(None), T.balance_irr.is_not(None))
+        .group_by(T.account_id)
+        .subquery()
+    )
+    balances = (
+        await session.execute(
+            select(FinancialAccount.display_name, T.balance_irr, T.bank_timestamp)
+            .select_from(T.__table__.join(latest, and_(T.account_id == latest.c.account_id, T.bank_timestamp == latest.c.at)))
+            .join(FinancialAccount.__table__, FinancialAccount.id == T.account_id)
+            .where(T.balance_irr.is_not(None))
+            .order_by(FinancialAccount.display_name)
+        )
+    ).all()
+
     verified_total = auto + manual
     return {
         "auto": auto, "manual": manual, "rejected": rejected,
@@ -37,4 +56,5 @@ async def summary(session: AsyncSession, since: dt.datetime) -> dict[str, Any]:
         "by_account": [(name or "بدون حساب", n, int(total)) for name, n, total in by_account],
         "unmatched": (unmatched[0], int(unmatched[1])),
         "declined": (declined[0], int(declined[1])),
+        "balances": [(name, int(balance), at) for name, balance, at in balances],
     }

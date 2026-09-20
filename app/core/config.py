@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
 
+    # How often the shell asks the bell for its number, in seconds. 0 turns
+    # the polling off entirely and leaves the count as it was at page load.
+    bell_poll_seconds: int = 30
+
     # The public SMS door. Body cap in bytes (a bank SMS is a few hundred),
     # per-device and per-IP request limits per minute.
     ingest_max_body_bytes: int = 8192

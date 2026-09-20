@@ -171,3 +171,50 @@ async def test_a_destructive_control_does_nothing_until_its_confirmation_is_tick
     await rotate.locator("button[type=submit]").click()
     await page.page.wait_for_load_state("networkidle")
     assert "phone-browser" in await page.page.content()
+
+
+async def test_the_bell_count_keeps_itself_up_to_date_without_a_page_load(op, base_url, monkeypatch):
+    """A payment that arrives while the operator is looking at another screen
+    has to reach them. The count is polled, so the number on the page changes
+    without anyone reloading anything."""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "bell_poll_seconds", 1)
+    page = await op("ADMIN")
+    await page.page.goto(f"{base_url}/accounts")
+    assert await page.page.locator(".bell .badge--count").count() == 0, "nothing is waiting yet"
+
+    # Two payments and one credit: the matcher refuses to guess and both land
+    # in the review queue, while the browser sits on another page.
+    acct = await _account_with_card()
+    await _claim(account_id=acct, alobot_id=8801)
+    await _claim(account_id=acct, alobot_id=8802)
+    await _credit()
+    async with async_session_maker() as db:
+        await settle.settle(db)
+
+    badge = page.page.locator(".bell .badge--count")
+    await badge.wait_for(timeout=10_000)
+    assert (await badge.inner_text()).strip() == "۲"
+    assert (await page.page.title()).startswith("(۲)"), "the tab does not say how many are waiting"
+    assert not page.problems(), page.problems()
+
+
+async def test_no_section_scrolls_sideways_on_a_phone(op, seeded, base_url):
+    """Operators check the queue on a phone. A page wider than the screen is
+    not a cosmetic problem: the actions live at the end of each row, which is
+    exactly the part that falls off."""
+    page = await op("ADMIN")
+    await page.page.set_viewport_size({"width": 390, "height": 844})
+    too_wide: list[str] = []
+    for page_id in SECTIONS:
+        if not visible("ADMIN", page_id):
+            continue
+        path = "/" if page_id == "overview" else f"/{page_id}"
+        await page.page.goto(base_url + path)
+        overflow = await page.page.evaluate(
+            "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
+        )
+        if overflow > 0:
+            too_wide.append(f"{page_id}: {overflow}px past the screen")
+    assert not too_wide, "sections overflow a phone screen:\n" + "\n".join(too_wide)

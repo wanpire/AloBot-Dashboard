@@ -30,7 +30,7 @@
   <header class="topbar">
     <div class="crumb">{% if page_id %}{{ page_label(page_id) }}{% else %}{% block heading %}{% endblock %}{% endif %}</div>
     <div class="who">
-      <a href="/payments?tab=review" class="bell" title="پرداخت‌های در انتظار بررسی">🔔{% if badges.get("payments") %} <span class="badge badge--count">{{ badges["payments"] | fa_number }}</span>{% endif %}</a>
+      <a href="/payments?tab=review" class="bell" title="پرداخت‌های در انتظار بررسی" data-poll="{{ bell_poll_seconds }}" data-count="{{ badges.get("payments") or 0 }}">🔔{% if badges.get("payments") %} <span class="badge badge--count">{{ badges["payments"] | fa_number }}</span>{% endif %}</a>
       <span>{{ operator.display_name }}</span>
       <span class="badge">{{ operator.role }}</span>
       <a href="/password" class="link">تغییر رمز</a>
@@ -49,5 +49,65 @@
   {% block bare %}{% endblock %}
 </main>
 {% endif %}
+<script>
+// The bell keeps its own count up to date: an operator is not sitting on the
+// payments page, and a number that is only right at page load is not a bell.
+// Everything here degrades to "the count stays as it was" - no polling when
+// the interval is zero, no sound when the browser will not make one.
+(function () {
+  var bell = document.querySelector('.bell');
+  if (!bell) return;
+  var every = Number(bell.getAttribute('data-poll') || 0) * 1000;
+  if (!(every > 0)) return;
+  var baseTitle = document.title;
+  var known = Number(bell.getAttribute('data-count') || 0);
+  var audio = null;
+  // Browsers refuse to make noise before the person has interacted with the
+  // page, so the audio context is built on their first click and never before.
+  document.addEventListener('click', function () {
+    if (!audio && window.AudioContext) { try { audio = new AudioContext(); } catch (e) { audio = null; } }
+  }, { once: true });
+  function fa(n) { return String(n).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[Number(d)]; }); }
+  function beep() {
+    if (!audio || audio.state !== 'running') return;
+    try {
+      var osc = audio.createOscillator(), gain = audio.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.04;
+      osc.connect(gain); gain.connect(audio.destination);
+      osc.start(); osc.stop(audio.currentTime + 0.12);
+    } catch (e) { /* a browser that will not beep is not a broken panel */ }
+  }
+  function paint(n) {
+    var badge = bell.querySelector('.badge--count');
+    if (n > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'badge badge--count';
+        bell.appendChild(document.createTextNode(' '));
+        bell.appendChild(badge);
+      }
+      badge.textContent = fa(n);
+    } else if (badge) {
+      badge.remove();
+    }
+    document.title = (n > 0 ? '(' + fa(n) + ') ' : '') + baseTitle;
+  }
+  function tick() {
+    fetch('/bell', { credentials: 'same-origin', headers: { 'accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data) return;
+        var n = Number(data.review || 0);
+        if (n > known) beep();
+        known = n;
+        bell.setAttribute('data-count', n);
+        paint(n);
+      })
+      .catch(function () { /* one failed poll is not worth a visible error */ });
+  }
+  setInterval(tick, every);
+})();
+</script>
 </body>
 </html>

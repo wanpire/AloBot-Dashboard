@@ -13,7 +13,10 @@ body.shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
 .topbar{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
 .crumb{font-weight:600}.who{display:flex;gap:10px;align-items:center}
 .content{padding:24px;max-width:1200px;width:100%}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px}
+/* A card scrolls its own wide content. Tables here have many columns and a
+   phone screen is 390px: without this the table pushes the whole page sideways
+   and the actions, which sit at the end of every row, fall off the screen. */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;overflow-x:auto}
 .card--login{max-width:420px;margin:10vh auto}
 .bare__main{padding:24px}
 .grid--cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:16px}
@@ -31,7 +34,9 @@ input,select,textarea{display:block;width:100%;margin-top:6px;padding:9px 12px;b
 .hint{color:var(--muted);font-size:13px}
 .link{font-size:14px}
 table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line)}
-@media (max-width:760px){body.shell{grid-template-columns:1fr}.sidebar{flex-direction:row;flex-wrap:wrap;overflow-x:auto}.sidebar__foot{margin-top:0}}
+@media (max-width:760px){body.shell{grid-template-columns:1fr}.sidebar{flex-direction:row;flex-wrap:wrap;overflow-x:auto}.sidebar__foot{margin-top:0}
+.topbar{flex-wrap:wrap;gap:8px;padding:10px 14px}.who{flex-wrap:wrap;gap:8px}.content{padding:14px}
+.grid--cards{grid-template-columns:1fr}}
 .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:end}.filters label{margin:0;min-width:160px}.filters input,.filters select{margin-top:4px}
 .pager{margin-top:10px}
 h2{font-size:18px;margin:16px 0 8px}h3{font-size:15px;margin:0 0 8px}

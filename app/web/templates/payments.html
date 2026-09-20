@@ -52,6 +52,22 @@
             {% else %}<p class="hint">هیچ واریز نامزدی ندارد.</p>{% endif %}
             {% if operator.role in ("ADMIN", "REVIEWER") %}
               {% if c.status in ("PENDING", "FULFILLED_UNRECONCILED") %}
+              {% if r.attachable %}
+              {# The matcher only suggests what fits its rule. These are the
+                 nearby credits nobody has spent, so a payment and its money
+                 can still be joined by hand instead of being verified with
+                 no transaction at all. #}
+              <form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="inline">
+                <label>پیوست واریز دیگر
+                  <select name="transaction_id">
+                    {% for t, delta in r.attachable %}
+                    <option value="{{ t.id }}">{{ t.amount_irr | toman }} · {{ t.bank_timestamp | jalali_dt }} · {{ delta | fa_number }} ثانیه فاصله{% if t.amount_irr != c.expected_amount_irr %} · اختلاف مبلغ{% endif %}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <button class="btn" type="submit">پیوست و تایید</button>
+              </form>
+              {% endif %}
               <form method="post" action="/payments/{{ c.id }}/verify-manual?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="دلیل تایید بدون تراکنش" required><button class="btn" type="submit">تایید دستی</button></form>
               <form method="post" action="/payments/{{ c.id }}/reject?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="دلیل رد"><button class="btn" type="submit">رد</button></form>
               <form method="post" action="/payments/{{ c.id }}/fake?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="چرا جعلی"><button class="btn" type="submit">جعلی</button></form>

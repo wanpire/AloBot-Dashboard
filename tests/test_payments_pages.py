@@ -122,6 +122,29 @@ async def test_finance_page_reports_automation_rate_and_time_to_credit():
     assert "نرخ تایید خودکار" in r.text and "۱۰۰٪" in r.text and "۱۲۰" in r.text  # 120 seconds claim→credit
 
 
+async def test_finance_shows_the_banks_own_balance_beside_what_we_counted():
+    """Every bank SMS carries the account balance. Income the dashboard
+    counted is only half the picture: what makes a discrepancy visible is the
+    bank's own number next to it, with the time it was reported."""
+    acct = await _account_with_card()
+    await _claim(account_id=acct, alobot_id=1, at=NOW - dt.timedelta(minutes=5))
+    await _credit(at=NOW - dt.timedelta(minutes=3))
+    async with async_session_maker() as s:
+        await settle.settle(s, now=NOW)
+        from app.services import finance
+
+        summary = await finance.summary(s, since=NOW - dt.timedelta(days=7))
+    # The seeded SMS reports a balance of 8,354,098 rial.
+    assert summary["balances"], "no balance was reported for any account"
+    name, balance_irr, at = summary["balances"][0]
+    assert balance_irr == 8354098 and at is not None
+
+    c = await logged_in("READ_ONLY")
+    async with c:
+        r = await c.get("/finance?days=7")
+    assert "۸۳۵٬۴۰۹" in r.text, "the bank's reported balance is not on the page"
+
+
 async def test_no_getupdates_anywhere_under_app():
     import pathlib
 
@@ -133,3 +156,43 @@ async def test_phase4_sweeps_are_registered():
     from app.services.sweeps import registry
 
     assert {"claims.mirror", "claims.settle", "outbox.flush"} <= set(registry.names())
+
+
+async def test_a_credit_the_matcher_did_not_suggest_can_still_be_attached_by_a_reviewer():
+    """The matcher only suggests what fits its rule: same account, same amount
+    to the rial, inside five minutes. Everything else it leaves alone, and the
+    operator can see both the payment and the money on two different screens
+    with no way to join them. Verifying without a transaction would settle the
+    payment and leave the credit unclaimed for ever, which is how the books
+    drift. The row offers the nearby unspent credits instead."""
+    acct = await _account_with_card()
+    claim_id = await _claim(account_id=acct, alobot_id=7, at=NOW - dt.timedelta(minutes=40))
+    # Twelve minutes late and forty rial short: a real bank fee, outside every
+    # rule the matcher has.
+    late = await _credit(amount_irr=1249960, at=NOW - dt.timedelta(minutes=28))
+    async with async_session_maker() as s:
+        await settle.settle(s, now=NOW)
+
+    c = await logged_in("REVIEWER")
+    async with c:
+        page = await c.get("/payments?tab=review")
+        assert page.status_code == 200
+        assert f'value="{late}"' in page.text, "the nearby credit is not offered anywhere on the row"
+        attached = await c.post(f"/payments/{claim_id}/approve", data={"transaction_id": str(late)}, headers=O)
+        assert attached.status_code == 303, attached.text
+
+    async with async_session_maker() as s:
+        claim = await s.get(PaymentClaim, claim_id)
+        match = (await s.execute(select(ReconciliationMatch).where(ReconciliationMatch.claim_id == claim_id))).scalar_one()
+    assert claim.status == "MANUAL_VERIFIED" and claim.verified_by
+    assert (match.transaction_id, match.status) == (late, "CONFIRMED")
+
+
+async def test_a_credit_already_spent_is_not_offered_for_attaching_either():
+    a, b, tx = await _ambiguous()
+    c = await logged_in("REVIEWER")
+    async with c:
+        await c.post(f"/payments/{a}/approve", data={"transaction_id": str(tx)}, headers=O)
+        page = await c.get("/payments?tab=review")
+    assert page.status_code == 200
+    assert f'value="{tx}"' not in page.text, "a spent credit is still being offered"

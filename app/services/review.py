@@ -219,4 +219,48 @@ async def list_claims(session: AsyncSession, *, tab: str = "review", q: str | No
             )
         ).scalars().all()
     ) if tx_ids else set()
+    for row in rows:
+        row["attachable"] = await _attachable(session, row["claim"], spent) if row["claim"].status in OPEN else []
     return {"rows": rows, "total": total, "page": page, "page_size": PAGE_SIZE, "spent_transactions": spent}
+
+# How far from the customer's click a credit may sit and still be worth
+# offering by hand. The matcher's own window is five minutes; this is wider on
+# purpose, because the cases that reach a human are exactly the ones that fell
+# outside it - a bank that posted late, an amount short by a fee, a transfer
+# from a second card.
+ATTACH_WINDOW = dt.timedelta(hours=24)
+ATTACH_LIMIT = 8
+
+
+async def _attachable(session: AsyncSession, claim: PaymentClaim, spent: set[int]) -> list[tuple[TransactionCandidate, int]]:
+    """Unspent bank credits near this payment, nearest first, each with its
+    distance in seconds from the click. This is what lets an operator join a
+    payment and the money when the matcher would not: verifying without a
+    transaction settles the payment and leaves the credit unclaimed for ever,
+    which is how the books drift apart."""
+    already = {
+        row
+        for row in (
+            await session.execute(select(ReconciliationMatch.transaction_id).where(ReconciliationMatch.claim_id == claim.id))
+        ).scalars().all()
+    }
+    settled = select(ReconciliationMatch.transaction_id).where(ReconciliationMatch.status.in_(SETTLING_MATCH_STATUSES))
+    candidates = (
+        await session.execute(
+            select(TransactionCandidate).where(
+                TransactionCandidate.direction == "CREDIT",
+                TransactionCandidate.disposition == "ACTIONABLE",
+                TransactionCandidate.amount_irr.is_not(None),
+                TransactionCandidate.bank_timestamp >= claim.paid_clicked_at - ATTACH_WINDOW,
+                TransactionCandidate.bank_timestamp <= claim.paid_clicked_at + ATTACH_WINDOW,
+                TransactionCandidate.id.not_in(settled),
+            )
+        )
+    ).scalars().all()
+    near = [
+        (tx, int(abs((tx.bank_timestamp - claim.paid_clicked_at).total_seconds())))
+        for tx in candidates
+        if tx.id not in spent and tx.id not in already
+    ]
+    near.sort(key=lambda pair: pair[1])
+    return near[:ATTACH_LIMIT]
