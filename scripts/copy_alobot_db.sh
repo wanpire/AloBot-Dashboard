@@ -14,7 +14,12 @@ DUMP="${1:?path to AloBot dump}"
 ADMIN_URL="${2:-postgresql://dashboard:dashboard@localhost:5432/postgres}"
 COPY_DB="${3:-alobot_copy}"
 HOST="$(python3 -c "import sys,urllib.parse as u; print(u.urlsplit(sys.argv[1]).hostname or '')" "$ADMIN_URL")"
-case "$HOST" in localhost|127.0.0.1|::1|host.docker.internal) ;; *) echo "refusing non-local host $HOST"; exit 2;; esac
+# The guard is about the DESTINATION: this restores INTO the dashboard's own
+# Postgres and must never be pointed at AloBot's. `postgres` is the service
+# name of this project's own db container in docker-compose.yml, which is how
+# the destination is addressed from inside the app container on a server;
+# AloBot's own database is not reachable under that name.
+case "$HOST" in localhost|127.0.0.1|::1|host.docker.internal|postgres) ;; *) echo "refusing non-local host $HOST"; exit 2;; esac
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 if [[ "$DUMP" == *.zip ]]; then
