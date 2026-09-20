@@ -1,60 +1,103 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
-{% include "_alobot_banner.html" %}
-<div class="card">
-  <table>
-    <thead><tr><th>کد</th><th>درصد</th><th>نوع</th><th>سقف</th><th>مصرف</th><th>تخفیف داده‌شده</th><th>دامنه</th><th>وضعیت</th><th></th></tr></thead>
-    <tbody>
+{% if notice == "saved" %}{{ ui.toast("ذخیره شد.", tone="success") }}{% endif %}
+{% if not alobot_writes %}
+{{ ui.toast("این بخش تا فاز یکپارچه‌سازی <b>فقط‌خواندنی</b> است: داده از نسخهٔ کپی پایگاه‌دادهٔ آلوبات خوانده می‌شود و هیچ تغییری روی ربات اعمال نمی‌شود." | safe, tone="info", dismissible=False) }}
+{% endif %}
+
+{% call ui.card() %}
+  {% if rows %}
+  {% call ui.table(["کد", "درصد", "نوع", "سقف", "مصرف", "تخفیف داده‌شده", "دامنه", "وضعیت", ""]) %}
     {% for d in rows %}
-      <tr>
-        <td dir="ltr">{{ d.code }}</td><td>{{ d.percent | int | fa_number }}٪</td><td>{{ "عمومی" if d.is_public else "خصوصی / VIP" }}</td>
-        <td>{{ d.usage_limit | fa_number if d.usage_limit else "نامحدود" }}</td><td>{{ d.uses | fa_number }}</td><td>{{ d.given | toman_amount }}</td>
-        <td>{{ d.categories or "همه" }}</td><td>{{ "فعال" if d.is_active else "غیرفعال" }}</td>
-        <td>
-          <a class="link" href="/discounts?usages={{ d.id }}">مصرف‌کننده‌ها</a>
-          {% if alobot_writes and operator.role == "ADMIN" %}
-          <form method="post" action="/discounts/{{ d.id }}/active" class="inline"><input type="hidden" name="active" value="{{ '0' if d.is_active else '1' }}"><button class="btn" type="submit">{{ "غیرفعال کن" if d.is_active else "فعال کن" }}</button></form>
-          {% if not d.uses %}<form method="post" action="/discounts/{{ d.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}
-          {% endif %}
-        </td>
-      </tr>
-    {% else %}<tr><td colspan="9" class="hint">کدی ثبت نشده.</td></tr>{% endfor %}
-    </tbody>
-  </table>
-</div>
+    {% call ui.row() %}
+      {% call ui.cell("کد") %}<span dir="ltr">{{ d.code }}</span>{% endcall %}
+      {% call ui.cell("درصد") %}{{ d.percent | int | fa_number }}٪{% endcall %}
+      {% call ui.cell("نوع") %}{{ "عمومی" if d.is_public else "خصوصی / VIP" }}{% endcall %}
+      {% call ui.cell("سقف") %}{{ d.usage_limit | fa_number if d.usage_limit else "نامحدود" }}{% endcall %}
+      {% call ui.cell("مصرف") %}{{ d.uses | fa_number }}{% endcall %}
+      {% call ui.cell("تخفیف داده‌شده") %}{{ d.given | toman_amount }}{% endcall %}
+      {% call ui.cell("دامنه") %}{{ d.categories or "همه" }}{% endcall %}
+      {% call ui.cell("وضعیت") %}{{ ui.state_badge("ACTIVE" if d.is_active else "DISABLED", family="card", label="فعال" if d.is_active else "غیرفعال") }}{% endcall %}
+      {% call ui.actions_cell() %}
+        <a class="link-primary" href="/discounts?usages={{ d.id }}">مصرف‌کننده‌ها</a>
+        {% if alobot_writes and operator.role == "ADMIN" %}
+        <form method="post" action="/discounts/{{ d.id }}/active">
+          <input type="hidden" name="active" value="{{ '0' if d.is_active else '1' }}">
+          {{ ui.btn("غیرفعال کن" if d.is_active else "فعال کن", size="sm", type="submit") }}
+        </form>
+        {% if not d.uses %}
+        <form method="post" action="/discounts/{{ d.id }}/delete">{{ ui.btn("حذف", size="sm", type="submit") }}</form>
+        {% endif %}
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("کدی ثبت نشده.") }}{% endif %}
+{% endcall %}
+
 {% if usages %}
-<div class="card" style="margin-top:16px">
-  <h2>مصرف‌کننده‌های کد {{ usages.code_id | fa_number }}</h2>
-  <table><thead><tr><th>مشتری</th><th>درصد</th><th>قیمت اصلی</th><th>پرداختی</th><th>زمان</th></tr></thead>
-  <tbody>{% for u in usages.rows %}<tr><td><a class="link" href="/customers/{{ u.telegram_id }}">{{ u.telegram_id | string | fa }}</a></td><td>{{ u.percent | int | fa_number }}٪</td><td>{{ u.original_amount | toman_amount }}</td><td>{{ u.amount | toman_amount }}</td><td>{{ u.used_at | jalali_dt }}</td></tr>{% else %}<tr><td colspan="5" class="hint">هنوز کسی استفاده نکرده.</td></tr>{% endfor %}</tbody></table>
+<div class="mt-3">
+{% call ui.card("مصرف‌کننده‌های کد " ~ (usages.code_id | fa_number)) %}
+  {% if usages.rows %}
+  {% call ui.table(["مشتری", "درصد", "قیمت اصلی", "پرداختی", "زمان"]) %}
+    {% for u in usages.rows %}
+    {% call ui.row() %}
+      {% call ui.cell("مشتری") %}<a class="link-primary" href="/customers/{{ u.telegram_id }}">{{ u.telegram_id | string | fa }}</a>{% endcall %}
+      {% call ui.cell("درصد") %}{{ u.percent | int | fa_number }}٪{% endcall %}
+      {% call ui.cell("قیمت اصلی") %}{{ u.original_amount | toman_amount }}{% endcall %}
+      {% call ui.cell("پرداختی") %}{{ u.amount | toman_amount }}{% endcall %}
+      {% call ui.cell("زمان") %}{{ u.used_at | jalali_dt }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("هنوز کسی استفاده نکرده.") }}{% endif %}
+{% endcall %}
 </div>
 {% endif %}
+
 {% if alobot_writes and operator.role == "ADMIN" %}
-<div class="card" style="margin-top:16px">
-  <h2>کد جدید</h2>
+<div class="mt-3">
+{% call ui.card("کد جدید") %}
   <form method="post" action="/discounts">
-    <label>کد <input type="text" name="code" dir="ltr" required><span class="hint">با حروف بزرگ ذخیره می‌شود، همان‌طور که ربات می‌خواندش.</span></label>
-    <label>درصد تخفیف <input type="number" name="percent" min="1" max="100" required></label>
-    <label>سقف استفاده <input type="number" name="usage_limit" min="1" placeholder="خالی = نامحدود"></label>
-    <label>دامنه
-      <div class="filters">{% for c in categories %}<label><input type="checkbox" name="cat_{{ c }}"> {{ category_labels[c] }}</label>{% endfor %}</div>
-      <span class="hint">هیچ‌کدام یا همه = برای همهٔ سرویس‌ها.</span>
+    <div class="row g-2">
+      <div class="col-12 col-md-4">{{ ui.field("code", "کد", required=True, hint="با حروف بزرگ ذخیره می‌شود، همان‌طور که ربات می‌خواندش.", attrs={"dir": "ltr"}) }}</div>
+      <div class="col-12 col-md-4">{{ ui.field("percent", "درصد تخفیف", type="number", required=True, attrs={"min": "1", "max": "100"}) }}</div>
+      <div class="col-12 col-md-4">{{ ui.field("usage_limit", "سقف استفاده", type="number", attrs={"min": "1", "placeholder": "خالی = نامحدود"}) }}</div>
+    </div>
+    <label class="form-label">دامنه</label>
+    <div class="d-flex flex-wrap gap-3">
+      {% for c in categories %}
+      <label class="form-check form-check-inline">
+        <input class="form-check-input" type="checkbox" name="cat_{{ c }}">
+        <span class="form-check-label">{{ category_labels[c] }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <small class="form-hint d-block mb-3">هیچ‌کدام یا همه = برای همهٔ سرویس‌ها.</small>
+    <label class="form-check">
+      <input class="form-check-input" type="checkbox" name="is_public" checked>
+      <span class="form-check-label">عمومی (قیمت با تخفیف به همه نشان داده می‌شود)</span>
     </label>
-    <label><input type="checkbox" name="is_public" checked> عمومی (قیمت با تخفیف به همه نشان داده می‌شود)</label>
     {% if discount_bounds %}
-    <div class="filters">
-      <label>مهلت استفاده (شمسی، اختیاری) <input type="text" name="expires_at" dir="ltr" placeholder="۱۴۰۵/۱۰/۱۰" inputmode="numeric">
-        <span class="hint">تا پایان همان روز به وقت تهران معتبر است.</span></label>
-      <label>سقف برای هر مشتری (اختیاری) <input type="text" name="per_user_limit" inputmode="numeric" placeholder="مثلاً ۱">
-        <span class="hint">خالی یعنی بدون سقف؛ شمارش از روی سابقهٔ استفاده است، نه یک شمارنده.</span></label>
+    <div class="row g-2 mt-1">
+      <div class="col-12 col-md-6">
+        {{ ui.field("expires_at", "مهلت استفاده (شمسی، اختیاری)", hint="تا پایان همان روز به وقت تهران معتبر است.",
+                    attrs={"dir": "ltr", "placeholder": "۱۴۰۵/۱۰/۱۰", "inputmode": "numeric"}) }}
+      </div>
+      <div class="col-12 col-md-6">
+        {{ ui.field("per_user_limit", "سقف برای هر مشتری (اختیاری)", hint="خالی یعنی بدون سقف؛ شمارش از روی سابقهٔ استفاده است، نه یک شمارنده.",
+                    attrs={"inputmode": "numeric", "placeholder": "مثلاً ۱"}) }}
+      </div>
     </div>
     {% endif %}
-    <button class="btn btn--primary" type="submit">ساختن</button>
+    <div class="mt-2">{{ ui.btn("ساختن", tone="primary", type="submit") }}</div>
   </form>
   {% if not discount_bounds %}
-  <p class="hint">تاریخ انقضا و سقف به‌ازای هر مشتری هنوز در اسکیمای آلوبات نیستند؛ مهاجرتش در <span dir="ltr">docs/alobot-migrations/</span> نوشته شده و تا اجرا نشود این دو فیلد نمایش داده نمی‌شوند.</p>
+  <p class="text-secondary">تاریخ انقضا و سقف به‌ازای هر مشتری هنوز در اسکیمای آلوبات نیستند؛ مهاجرتش در <span dir="ltr">docs/alobot-migrations/</span> نوشته شده و تا اجرا نشود این دو فیلد نمایش داده نمی‌شوند.</p>
   {% endif %}
+{% endcall %}
 </div>
 {% endif %}
 {% endblock %}

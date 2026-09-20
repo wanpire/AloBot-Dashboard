@@ -1,28 +1,50 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">تنظیمات ربات ذخیره شد.</div>{% endif %}
-{% include "_alobot_banner.html" %}
-<div class="card">
+{% if notice == "saved" %}{{ ui.toast("تنظیمات ربات ذخیره شد.", tone="success") }}{% endif %}
+{% if not alobot_writes %}
+{{ ui.toast("این بخش تا فاز یکپارچه‌سازی <b>فقط‌خواندنی</b> است: داده از نسخهٔ کپی پایگاه‌دادهٔ آلوبات خوانده می‌شود و هیچ تغییری روی ربات اعمال نمی‌شود." | safe, tone="info", dismissible=False) }}
+{% endif %}
+{% call ui.card() %}
+  {% set locked = not alobot_writes or operator.role != "ADMIN" %}
   <form method="post" action="/botsettings">
     {% for spec in specs %}{% set value = values[spec.key] %}
-    <label>{{ spec.label }}
-      {% if spec.kind == "bool" %}
-        <input type="checkbox" name="{{ spec.key }}" value="1" {% if value %}checked{% endif %} {% if not alobot_writes or operator.role != "ADMIN" %}disabled{% endif %}>
-      {% elif spec.kind == "int" %}
-        <input type="number" name="{{ spec.key }}" value="{{ value if value is not none else '' }}" min="{{ spec.min }}" max="{{ spec.max }}" {% if not alobot_writes or operator.role != "ADMIN" %}disabled{% endif %}>
-      {% else %}
-        <input type="text" name="{{ spec.key }}" value="{{ value if value is not none else '' }}" {% if spec.kind in ("card", "chat_id") %}dir="ltr" inputmode="numeric"{% endif %} {% if not alobot_writes or operator.role != "ADMIN" %}disabled{% endif %}>
-      {% endif %}
-      <span class="hint">{{ spec.hint }} <span dir="ltr">({{ spec.key }})</span></span>
-    </label>
+    {% set hint_text = spec.hint %}
+    {% if spec.kind == "bool" %}
+      <label class="form-check">
+        <input class="form-check-input" type="checkbox" name="{{ spec.key }}" value="1" {% if value %}checked{% endif %} {% if locked %}disabled{% endif %}>
+        <span class="form-check-label">{{ spec.label }}</span>
+        <small class="form-hint d-block">{{ hint_text }} <span dir="ltr">({{ spec.key }})</span></small>
+      </label>
+    {% elif spec.kind == "int" %}
+      {{ ui.field(spec.key, spec.label, value=value if value is not none else "", type="number",
+                  attrs={"min": spec.min, "max": spec.max, "disabled": "disabled" if locked else None}) }}
+      <small class="form-hint d-block mb-3">{{ hint_text }} <span dir="ltr">({{ spec.key }})</span></small>
+    {% else %}
+      {{ ui.field(spec.key, spec.label, value=value if value is not none else "",
+                  attrs={"dir": "ltr" if spec.kind in ("card", "chat_id") else None,
+                         "inputmode": "numeric" if spec.kind in ("card", "chat_id") else None,
+                         "disabled": "disabled" if locked else None}) }}
+      <small class="form-hint d-block mb-3">{{ hint_text }} <span dir="ltr">({{ spec.key }})</span></small>
+    {% endif %}
     {% endfor %}
-    {% if alobot_writes and operator.role == "ADMIN" %}<button class="btn btn--primary" type="submit">ذخیره</button>{% endif %}
+    {% if alobot_writes and operator.role == "ADMIN" %}{{ ui.btn("ذخیره", tone="primary", type="submit") }}{% endif %}
   </form>
-</div>
+{% endcall %}
+
 {% if read_only %}
-<div class="card" style="margin-top:16px"><h3>تاپیک‌های گروه گزارش (فقط‌خواندنی)</h3>
-  <p class="hint">ربات این تاپیک‌ها را خودش در گروه فوروم می‌سازد و شناسه‌شان را این‌جا می‌نویسد. شمارهٔ دستی، گزارش‌ها را به جایی نمی‌رساند — از پنل خود ربات «بروزرسانی/ساخت تاپیک‌ها» را بزنید.</p>
-  <table>{% for key, value in read_only.items() %}<tr><td dir="ltr">{{ key }}</td><td dir="ltr">{{ value }}</td></tr>{% endfor %}</table>
+<div class="mt-3">
+{% call ui.card("تاپیک‌های گروه گزارش (فقط‌خواندنی)", footer="") %}
+  <p class="text-secondary">ربات این تاپیک‌ها را خودش در گروه فوروم می‌سازد و شناسه‌شان را این‌جا می‌نویسد. شمارهٔ دستی، گزارش‌ها را به جایی نمی‌رساند — از پنل خود ربات «بروزرسانی/ساخت تاپیک‌ها» را بزنید.</p>
+  {% call ui.table(["کلید", "مقدار"]) %}
+    {% for key, value in read_only.items() %}
+    {% call ui.row() %}
+      {% call ui.cell("کلید") %}<span dir="ltr">{{ key }}</span>{% endcall %}
+      {% call ui.cell("مقدار") %}<span dir="ltr">{{ value }}</span>{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+{% endcall %}
 </div>
 {% endif %}
 {% endblock %}

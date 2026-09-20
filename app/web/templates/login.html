@@ -3,7 +3,7 @@
 {% block page_title %}ورود{% endblock %}
 {% block bare %}
 {% call ui.card() %}
-  <h1 class="card-title text-center mb-4">ورود به داشبورد</h1>
+  {% call ui.card_title(level=1, class_="text-center mb-4") %}ورود به داشبورد{% endcall %}
   {% if notice %}{{ ui.toast(notice, tone="info", dismissible=False) }}{% endif %}
   {% if error %}{{ ui.form_errors(error, data_testid="login-error") }}{% endif %}
   <form method="post" action="/login">

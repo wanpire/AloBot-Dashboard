@@ -1,20 +1,64 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-<div class="card">
-  {% for d, name in [(1, "امروز"), (7, "۷ روز"), (30, "۳۰ روز"), (90, "۹۰ روز")] %}<a class="btn{% if days == d %} btn--primary{% endif %}" href="/finance?days={{ d }}">{{ name }}</a>{% endfor %}
-  <p class="hint">از {{ since | jalali_dt }}</p>
+{% call ui.card() %}
+  <div class="d-flex flex-wrap gap-2">
+    {% for d, name in [(1, "امروز"), (7, "۷ روز"), (30, "۳۰ روز"), (90, "۹۰ روز")] %}
+      {{ ui.btn(name, tone="primary" if days == d else "", href="/finance?days=" ~ d) }}
+    {% endfor %}
+  </div>
+  <p class="text-secondary mt-2">از {{ since | jalali_dt }}</p>
+{% endcall %}
+
+<div class="row row-cards mt-3">
+  <div class="col-sm-6 col-lg-3">
+    {{ ui.stat_tile("نرخ تایید خودکار",
+                    (automation_rate | fa_number) ~ "٪" if automation_rate is not none else "—",
+                    hint=(auto | fa_number) ~ " خودکار · " ~ (manual | fa_number) ~ " دستی · " ~ (rejected | fa_number) ~ " رد/جعلی") }}
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    {{ ui.stat_tile("میانگین فاصلهٔ «پرداخت کردم» تا واریز بانک",
+                    (avg_delta_seconds | fa_number) ~ " ثانیه" if avg_delta_seconds is not none else "—") }}
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    {{ ui.stat_tile("واریزهای بی‌صاحب", unmatched[0] | fa_number,
+                    hint=(unmatched[1] | toman) ~ " — واریز قابل تطبیقی که هیچ پرداختی آن را نگرفته") }}
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    {{ ui.stat_tile("درآمد نیست", declined[0] | fa_number, hint=declined[1] | toman) }}
+  </div>
 </div>
-<div class="grid grid--cards">
-  <div class="card"><div class="stat__label">نرخ تایید خودکار</div><div class="stat__value">{% if automation_rate is not none %}{{ automation_rate | fa_number }}٪{% else %}—{% endif %}</div><div class="hint">{{ auto | fa_number }} خودکار · {{ manual | fa_number }} دستی · {{ rejected | fa_number }} رد/جعلی</div></div>
-  <div class="card"><div class="stat__label">میانگین فاصلهٔ «پرداخت کردم» تا واریز بانک</div><div class="stat__value">{% if avg_delta_seconds is not none %}{{ avg_delta_seconds | fa_number }} ثانیه{% else %}—{% endif %}</div></div>
-  <div class="card"><div class="stat__label">واریزهای بی‌صاحب</div><div class="stat__value">{{ unmatched[0] | fa_number }}</div><div class="hint">{{ unmatched[1] | toman }} — واریز قابل تطبیقی که هیچ پرداختی آن را نگرفته</div></div>
-  <div class="card"><div class="stat__label">درآمد نیست</div><div class="stat__value">{{ declined[0] | fa_number }}</div><div class="hint">{{ declined[1] | toman }}</div></div>
+
+<div class="mt-3">
+{% call ui.card("واریز به هر حساب") %}
+  {% if by_account %}
+  {% call ui.table(["حساب", "تعداد", "مبلغ"]) %}
+    {% for name, n, total in by_account %}
+    {% call ui.row() %}
+      {% call ui.cell("حساب") %}{{ name }}{% endcall %}
+      {% call ui.cell("تعداد") %}{{ n | fa_number }}{% endcall %}
+      {% call ui.cell("مبلغ") %}{{ total | toman }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("واریزی در این بازه نیست.") }}{% endif %}
+{% endcall %}
 </div>
-<div class="card"><h2>واریز به هر حساب</h2>
-  <table><thead><tr><th>حساب</th><th>تعداد</th><th>مبلغ</th></tr></thead><tbody>{% for name, n, total in by_account %}<tr><td>{{ name }}</td><td>{{ n | fa_number }}</td><td>{{ total | toman }}</td></tr>{% else %}<tr><td colspan="3" class="hint">واریزی در این بازه نیست.</td></tr>{% endfor %}</tbody></table>
-</div>
-<div class="card"><h2>موجودی به روایت بانک</h2>
-  <p class="hint">آخرین موجودی که خود بانک در پیامک گزارش کرده. این عدد را با ستون «واریز به هر حساب» بسنجید؛ اختلاف یعنی پولی جابه‌جا شده که از این مسیر نگذشته.</p>
-  <table><thead><tr><th>حساب</th><th>موجودی</th><th>زمان گزارش</th></tr></thead><tbody>{% for name, balance, at in balances %}<tr><td>{{ name }}</td><td>{{ balance | toman }}</td><td>{{ at | jalali_dt }}</td></tr>{% else %}<tr><td colspan="3" class="hint">هیچ پیامکی تا کنون موجودی گزارش نکرده.</td></tr>{% endfor %}</tbody></table>
+
+<div class="mt-3">
+{% call ui.card("موجودی به روایت بانک") %}
+  <p class="text-secondary">آخرین موجودی که خود بانک در پیامک گزارش کرده. این عدد را با ستون «واریز به هر حساب» بسنجید؛ اختلاف یعنی پولی جابه‌جا شده که از این مسیر نگذشته.</p>
+  {% if balances %}
+  {% call ui.table(["حساب", "موجودی", "زمان گزارش"]) %}
+    {% for name, balance, at in balances %}
+    {% call ui.row() %}
+      {% call ui.cell("حساب") %}{{ name }}{% endcall %}
+      {% call ui.cell("موجودی") %}{{ balance | toman }}{% endcall %}
+      {% call ui.cell("زمان گزارش") %}{{ at | jalali_dt }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("هیچ پیامکی تا کنون موجودی گزارش نکرده.") }}{% endif %}
+{% endcall %}
 </div>
 {% endblock %}

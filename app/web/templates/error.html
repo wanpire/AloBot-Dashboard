@@ -11,7 +11,7 @@
 
 {% block bare %}
 {% call ui.card() %}
-  <h1 class="card-title">{{ title }}</h1>
+  {% call ui.card_title(level=1) %}{{ title }}{% endcall %}
   <p>{{ detail }}</p>
   {{ ui.btn("بازگشت", href="/") }}
 {% endcall %}
@@ -19,7 +19,7 @@
 
 {% block content %}
 {% call ui.card() %}
-  <h1 class="card-title">{{ title }}</h1>
+  {% call ui.card_title(level=1) %}{{ title }}{% endcall %}
   <p>{{ detail }}</p>
   {{ ui.btn("بازگشت به داشبورد", href="/") }}
 {% endcall %}

@@ -1,102 +1,163 @@
-{% extends "base.html" %}
-{% macro price_cell(s) %}{% if s %}{{ s.price | toman_amount }}{% else %}<span class="hint">خالی</span>{% endif %}{% endmacro %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
+{% macro price_cell(s) %}{% if s %}{{ s.price | toman_amount }}{% else %}<span class="text-secondary">خالی</span>{% endif %}{% endmacro %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% elif notice == "priced" %}<div class="flash flash--ok">قیمت‌ها اعمال شد.</div>{% endif %}
-{% include "_alobot_banner.html" %}
+{% if notice == "saved" %}{{ ui.toast("ذخیره شد.", tone="success") }}
+{% elif notice == "priced" %}{{ ui.toast("قیمت‌ها اعمال شد.", tone="success") }}{% endif %}
+{% if not alobot_writes %}
+{{ ui.toast("این بخش تا فاز یکپارچه‌سازی <b>فقط‌خواندنی</b> است: داده از نسخهٔ کپی پایگاه‌دادهٔ آلوبات خوانده می‌شود و هیچ تغییری روی ربات اعمال نمی‌شود." | safe, tone="info", dismissible=False) }}
+{% endif %}
+{% set may_edit = alobot_writes and operator.role == "ADMIN" %}
 
-<div class="card">
-  <h2>انواع سرویس</h2>
-  <p class="hint">خاموش‌کردن یک نوع سرویس، آن را از منوی خرید ربات برمی‌دارد؛ پلن‌هایش دست‌نخورده می‌مانند.</p>
-  <table>
+{% call ui.card("انواع سرویس") %}
+  <p class="text-secondary">خاموش‌کردن یک نوع سرویس، آن را از منوی خرید ربات برمی‌دارد؛ پلن‌هایش دست‌نخورده می‌مانند.</p>
+  {% call ui.table(["نوع", "وضعیت", ""]) %}
     {% for c in categories %}
-    <tr>
-      <td>{{ category_labels[c] }}</td>
-      <td>{{ "روشن" if enabled[c] else "خاموش" }}</td>
-      <td>{% if alobot_writes and operator.role == "ADMIN" %}
-        <form method="post" action="/catalog/category" class="inline"><input type="hidden" name="category" value="{{ c }}"><input type="hidden" name="enabled" value="{{ '0' if enabled[c] else '1' }}"><button class="btn" type="submit">{{ "خاموش کن" if enabled[c] else "روشن کن" }}</button></form>
-      {% endif %}</td>
-    </tr>
+    {% call ui.row() %}
+      {% call ui.cell("نوع") %}{{ category_labels[c] }}{% endcall %}
+      {% call ui.cell("وضعیت") %}{{ "روشن" if enabled[c] else "خاموش" }}{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if may_edit %}
+        <form method="post" action="/catalog/category">
+          <input type="hidden" name="category" value="{{ c }}">
+          <input type="hidden" name="enabled" value="{{ '0' if enabled[c] else '1' }}">
+          {{ ui.btn("خاموش کن" if enabled[c] else "روشن کن", size="sm", type="submit") }}
+        </form>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
     {% endfor %}
-  </table>
-</div>
+  {% endcall %}
+{% endcall %}
 
 {% for scope in scopes %}{% set category = scope[0] %}{% set location_id = scope[1] %}
 {% set loc = (locations | selectattr("id", "equalto", location_id) | first) if location_id else None %}
-<div class="card" style="margin-top:16px">
-  <h2>ماتریس پلن: {{ category_labels[category] }}{% if loc %} — {{ loc.flag_emoji }} {{ loc.title }}{% endif %}</h2>
-  <table>
-    <thead><tr><th>مدت / کاربر</th>{% for u in user_counts %}<th>{{ u | fa_number }} کاربر</th>{% endfor %}</tr></thead>
-    <tbody>
+<div class="mt-3">
+{% call ui.card("ماتریس پلن: " ~ category_labels[category] ~ (" — " ~ loc.flag_emoji ~ " " ~ loc.title if loc else "")) %}
+  {% set matrix_columns = ["مدت / کاربر"] %}
+  {% for u in user_counts %}{% set _ = matrix_columns.append((u | fa_number) ~ " کاربر") %}{% endfor %}
+  {% call ui.table(matrix_columns) %}
     {% for d in durations %}
-      <tr>
-        <th>{{ d | fa_number }} ماه</th>
-        {% for u in user_counts %}{% set s = slots[scope][(d, u)] %}
-        <td>
-          {{ price_cell(s) }}
-          {% if s %}<br><span class="hint" dir="ltr">{{ s.group_name }}</span> <span class="hint">{{ "فعال" if s.is_active else "غیرفعال" }}</span>{% endif %}
-          {% if alobot_writes and operator.role == "ADMIN" %}
-          <details><summary>ویرایش</summary>
-            <form method="post" action="/catalog/slot">
-              <input type="hidden" name="category" value="{{ category }}"><input type="hidden" name="duration_months" value="{{ d }}"><input type="hidden" name="user_count" value="{{ u }}">
-              {% if location_id %}<input type="hidden" name="location_id" value="{{ location_id }}">{% endif %}
-              <label>گروه IBSng <select name="group_name"><option value="">— برداشتن این پلن —</option>{% for g in sellable_groups %}<option value="{{ g.name }}" {% if s and s.group_name == g.name %}selected{% endif %}>{{ g.name }}</option>{% endfor %}</select></label>
-              <label>قیمت (تومان) <input type="text" name="price" inputmode="numeric" value="{{ (s.price | int) if s else '' }}"></label>
-              <button class="btn btn--primary" type="submit">ذخیره</button>
-            </form>
-            {% if s %}<form method="post" action="/catalog/service/{{ s.id }}/active" class="inline"><input type="hidden" name="active" value="{{ '0' if s.is_active else '1' }}"><button class="btn" type="submit">{{ "غیرفعال کن" if s.is_active else "فعال کن" }}</button></form>{% endif %}
-          </details>
+    {% call ui.row() %}
+      {% call ui.cell("مدت / کاربر") %}{{ d | fa_number }} ماه{% endcall %}
+      {% for u in user_counts %}{% set s = slots[scope][(d, u)] %}
+      {% call ui.cell((u | fa_number) ~ " کاربر") %}
+        {{ price_cell(s) }}
+        {% if s %}<br><span class="text-secondary" dir="ltr">{{ s.group_name }}</span> <span class="text-secondary">{{ "فعال" if s.is_active else "غیرفعال" }}</span>{% endif %}
+        {% if may_edit %}
+        <details><summary class="text-primary">ویرایش</summary>
+          <form method="post" action="/catalog/slot" class="mt-2">
+            <input type="hidden" name="category" value="{{ category }}">
+            <input type="hidden" name="duration_months" value="{{ d }}">
+            <input type="hidden" name="user_count" value="{{ u }}">
+            {% if location_id %}<input type="hidden" name="location_id" value="{{ location_id }}">{% endif %}
+            {% set group_options = [("", "— برداشتن این پلن —")] %}
+            {% for g in sellable_groups %}{% set _ = group_options.append((g.name, g.name)) %}{% endfor %}
+            {{ ui.field("group_name", "گروه IBSng", value=s.group_name if s else "", options=group_options) }}
+            {{ ui.field("price", "قیمت (تومان)", value=(s.price | int) if s else "", attrs={"inputmode": "numeric"}) }}
+            {{ ui.btn("ذخیره", tone="primary", size="sm", type="submit") }}
+          </form>
+          {% if s %}
+          <form method="post" action="/catalog/service/{{ s.id }}/active" class="mt-1">
+            <input type="hidden" name="active" value="{{ '0' if s.is_active else '1' }}">
+            {{ ui.btn("غیرفعال کن" if s.is_active else "فعال کن", size="sm", type="submit") }}
+          </form>
           {% endif %}
-        </td>
-        {% endfor %}
-      </tr>
+        </details>
+        {% endif %}
+      {% endcall %}
+      {% endfor %}
+    {% endcall %}
     {% endfor %}
-    </tbody>
-  </table>
+  {% endcall %}
+{% endcall %}
 </div>
 {% endfor %}
 
-<div class="card" style="margin-top:16px">
-  <h2>لوکیشن‌ها</h2>
-  <table>
-    <thead><tr><th>نام</th><th>پرچم</th><th>وضعیت</th><th></th></tr></thead>
-    <tbody>{% for l in locations %}<tr><td dir="ltr">{{ l.title }}</td><td>{{ l.flag_emoji }}</td><td>{{ "فعال" if l.is_active else "غیرفعال" }}</td>
-      <td>{% if alobot_writes and operator.role == "ADMIN" %}
-        <form method="post" action="/catalog/locations/{{ l.id }}/active" class="inline"><input type="hidden" name="active" value="{{ '0' if l.is_active else '1' }}"><button class="btn" type="submit">{{ "غیرفعال کن" if l.is_active else "فعال کن" }}</button></form>
-        <form method="post" action="/catalog/locations/{{ l.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>
-      {% endif %}</td></tr>{% else %}<tr><td colspan="4" class="hint">لوکیشنی ثبت نشده.</td></tr>{% endfor %}</tbody>
-  </table>
-  {% if alobot_writes and operator.role == "ADMIN" %}
-  <form method="post" action="/catalog/locations" class="filters"><label>نام (انگلیسی) <input type="text" name="title" dir="ltr" required></label><label>پرچم <input type="text" name="flag_emoji" required></label><button class="btn" type="submit">افزودن لوکیشن</button></form>
-  <p class="hint">آلوبات نام لوکیشن را انگلیسی نگه می‌دارد؛ صفحه‌های مشتری ترجمه‌اش را نشان می‌دهند.</p>
+<div class="mt-3">
+{% call ui.card("لوکیشن‌ها") %}
+  {% if locations %}
+  {% call ui.table(["نام", "پرچم", "وضعیت", ""]) %}
+    {% for l in locations %}
+    {% call ui.row() %}
+      {% call ui.cell("نام") %}<span dir="ltr">{{ l.title }}</span>{% endcall %}
+      {% call ui.cell("پرچم") %}{{ l.flag_emoji }}{% endcall %}
+      {% call ui.cell("وضعیت") %}{{ "فعال" if l.is_active else "غیرفعال" }}{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if may_edit %}
+        <form method="post" action="/catalog/locations/{{ l.id }}/active">
+          <input type="hidden" name="active" value="{{ '0' if l.is_active else '1' }}">
+          {{ ui.btn("غیرفعال کن" if l.is_active else "فعال کن", size="sm", type="submit") }}
+        </form>
+        <form method="post" action="/catalog/locations/{{ l.id }}/delete">{{ ui.btn("حذف", size="sm", type="submit") }}</form>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("لوکیشنی ثبت نشده.") }}{% endif %}
+  {% if may_edit %}
+  {% call ui.filter_form("/catalog/locations", submit_label="افزودن لوکیشن", method="post") %}
+    <div class="col-12 col-md">{{ ui.field("title", "نام (انگلیسی)", required=True, attrs={"dir": "ltr"}) }}</div>
+    <div class="col-12 col-md-3">{{ ui.field("flag_emoji", "پرچم", required=True) }}</div>
+  {% endcall %}
+  <p class="text-secondary">آلوبات نام لوکیشن را انگلیسی نگه می‌دارد؛ صفحه‌های مشتری ترجمه‌اش را نشان می‌دهند.</p>
   {% endif %}
+{% endcall %}
 </div>
 
-<div class="card" style="margin-top:16px">
-  <h2>تغییر گروهی قیمت</h2>
-  <p class="hint">پیش‌نمایش و اعمال از یک عبارت واحد می‌آیند، پس آنچه می‌بینید همان است که نوشته می‌شود. فقط پلن‌های فعال. قیمت‌ها روی تومان کامل گرد می‌شوند و تغییری که پلنی را به صفر برساند اصلاً انجام نمی‌شود.</p>
-  {% if alobot_writes and operator.role == "ADMIN" %}
+<div class="mt-3">
+{% call ui.card("تغییر گروهی قیمت") %}
+  <p class="text-secondary">پیش‌نمایش و اعمال از یک عبارت واحد می‌آیند، پس آنچه می‌بینید همان است که نوشته می‌شود. فقط پلن‌های فعال. قیمت‌ها روی تومان کامل گرد می‌شوند و تغییری که پلنی را به صفر برساند اصلاً انجام نمی‌شود.</p>
+  {% if may_edit %}
   {% set bf = bulk_form or {} %}
-  <form method="post" action="/catalog/bulk-price" class="filters">
-    <label>نوع <select name="mode"><option value="percent" {% if bf.mode == 'percent' %}selected{% endif %}>درصدی</option><option value="amount" {% if bf.mode == 'amount' %}selected{% endif %}>مبلغ ثابت</option></select></label>
-    <label>مقدار (منفی = کاهش) <input type="text" name="value" value="{{ bf.value or '' }}" required></label>
-    <label>نوع سرویس <select name="category"><option value="">همه</option>{% for c in categories %}<option value="{{ c }}" {% if bf.category == c %}selected{% endif %}>{{ category_labels[c] }}</option>{% endfor %}</select></label>
-    <label>لوکیشن <select name="location_id"><option value="">همه</option>{% for l in locations %}<option value="{{ l.id }}" {% if bf.location_id == l.id|string %}selected{% endif %}>{{ l.title }}</option>{% endfor %}</select></label>
-    <button class="btn" type="submit">پیش‌نمایش</button>
-  </form>
+  {% set bulk_category_options = [("", "همه")] %}
+  {% for c in categories %}{% set _ = bulk_category_options.append((c, category_labels[c])) %}{% endfor %}
+  {% set bulk_location_options = [("", "همه")] %}
+  {% for l in locations %}{% set _ = bulk_location_options.append((l.id | string, l.title)) %}{% endfor %}
+  {% call ui.filter_form("/catalog/bulk-price", submit_label="پیش‌نمایش", method="post") %}
+    <div class="col-12 col-md-2">{{ ui.field("mode", "نوع", value=bf.mode or "percent", options=[("percent", "درصدی"), ("amount", "مبلغ ثابت")]) }}</div>
+    <div class="col-12 col-md-3">{{ ui.field("value", "مقدار (منفی = کاهش)", value=bf.value or "", required=True) }}</div>
+    <div class="col-12 col-md-3">{{ ui.field("category", "نوع سرویس", value=bf.category or "", options=bulk_category_options) }}</div>
+    <div class="col-12 col-md-3">{{ ui.field("location_id", "لوکیشن", value=bf.location_id or "", options=bulk_location_options) }}</div>
+  {% endcall %}
   {% if bulk %}
   <p>{{ bulk.count | fa_number }} پلن تغییر می‌کند:</p>
-  <table><thead><tr><th>پلن</th><th>نوع</th><th>قیمت فعلی</th><th>قیمت جدید</th></tr></thead>
-  <tbody>{% for r in bulk.rows %}<tr><td>{{ r.title }}</td><td>{{ category_labels[r.category] }}</td><td>{{ r.price | toman_amount }}</td><td>{{ r.new_price | toman_amount }}</td></tr>{% endfor %}</tbody></table>
+  {% call ui.table(["پلن", "نوع", "قیمت فعلی", "قیمت جدید"]) %}
+    {% for r in bulk.rows %}
+    {% call ui.row() %}
+      {% call ui.cell("پلن") %}{{ r.title }}{% endcall %}
+      {% call ui.cell("نوع") %}{{ category_labels[r.category] }}{% endcall %}
+      {% call ui.cell("قیمت فعلی") %}{{ r.price | toman_amount }}{% endcall %}
+      {% call ui.cell("قیمت جدید") %}{{ r.new_price | toman_amount }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
   <form method="post" action="/catalog/bulk-price">
-    <input type="hidden" name="mode" value="{{ bf.mode }}"><input type="hidden" name="value" value="{{ bf.value }}"><input type="hidden" name="category" value="{{ bf.category }}"><input type="hidden" name="location_id" value="{{ bf.location_id }}"><input type="hidden" name="apply" value="1">
-    <button class="btn btn--primary" type="submit">اعمال روی {{ bulk.count | fa_number }} پلن</button>
+    <input type="hidden" name="mode" value="{{ bf.mode }}">
+    <input type="hidden" name="value" value="{{ bf.value }}">
+    <input type="hidden" name="category" value="{{ bf.category }}">
+    <input type="hidden" name="location_id" value="{{ bf.location_id }}">
+    <input type="hidden" name="apply" value="1">
+    {{ ui.btn("اعمال روی " ~ (bulk.count | fa_number) ~ " پلن", tone="primary", type="submit") }}
   </form>
   {% endif %}
   {% endif %}
+{% endcall %}
 </div>
 
-<div class="card" style="margin-top:16px"><h3>گروه‌های IBSng (همگام‌شده توسط آلوبات)</h3>
-  <table>{% for g in groups %}<tr><td dir="ltr">{{ g.name }}</td><td>{% if g.is_trial %}<span class="badge">گروه تست</span>{% endif %}</td><td class="hint">{{ g.synced_at | jalali_dt }}</td></tr>{% endfor %}</table>
-  <p class="hint">این فهرست فقط‌خواندنی است؛ آلوبات آن را از IBSng همگام می‌کند و این داشبورد هیچ‌وقت به IBSng وصل نمی‌شود.</p>
+<div class="mt-3">
+{% call ui.card("گروه‌های IBSng (همگام‌شده توسط آلوبات)") %}
+  {% call ui.table(["گروه", "", "همگام‌سازی"]) %}
+    {% for g in groups %}
+    {% call ui.row() %}
+      {% call ui.cell("گروه") %}<span dir="ltr">{{ g.name }}</span>{% endcall %}
+      {% call ui.cell("") %}{% if g.is_trial %}{{ ui.state_badge("", label="گروه تست") }}{% endif %}{% endcall %}
+      {% call ui.cell("همگام‌سازی") %}<span class="text-secondary">{{ g.synced_at | jalali_dt }}</span>{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  <p class="text-secondary">این فهرست فقط‌خواندنی است؛ آلوبات آن را از IBSng همگام می‌کند و این داشبورد هیچ‌وقت به IBSng وصل نمی‌شود.</p>
+{% endcall %}
 </div>
 {% endblock %}

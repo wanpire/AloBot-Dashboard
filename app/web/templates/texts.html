@@ -1,22 +1,27 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
-<div class="flash">این متن‌ها در پایگاه‌دادهٔ <b>همین داشبورد</b> ذخیره می‌شوند. آلوبات هنوز آن‌ها را نمی‌خواند — در فاز یکپارچه‌سازی وصل می‌شود و تا آن روز متن‌های خودش را نشان می‌دهد. پیش‌فرض‌های زیر همان‌هایی‌اند که ربات امروز می‌گوید.</div>
+{% if notice == "saved" %}{{ ui.toast("ذخیره شد.", tone="success") }}{% endif %}
+{{ ui.toast("این متن‌ها در پایگاه‌دادهٔ <b>همین داشبورد</b> ذخیره می‌شوند. آلوبات هنوز آن‌ها را نمی‌خواند — در فاز یکپارچه‌سازی وصل می‌شود و تا آن روز متن‌های خودش را نشان می‌دهد. پیش‌فرض‌های زیر همان‌هایی‌اند که ربات امروز می‌گوید." | safe, tone="info", dismissible=False) }}
 {% for spec in specs %}
-<div class="card" style="margin-bottom:12px">
-  <h3>{{ spec.label }} <span class="hint" dir="ltr">{{ spec.key }}</span></h3>
-  <p class="hint">{{ spec.hint }}{% if spec.placeholders %} جای‌گذارها که باید بمانند: <span dir="ltr">{{ spec.placeholders | join(" ") }}</span>{% endif %}</p>
+<div class="mb-3">
+{% call ui.card() %}
+  {% call ui.card_title(level=3) %}{{ spec.label }} <span class="text-secondary" dir="ltr">{{ spec.key }}</span>{% endcall %}
+  <p class="text-secondary">{{ spec.hint }}{% if spec.placeholders %} جای‌گذارها که باید بمانند: <span dir="ltr">{{ spec.placeholders | join(" ") }}</span>{% endif %}</p>
   {% if operator.role == "ADMIN" %}
   <form method="post" action="/texts/{{ spec.key }}">
-    <textarea name="value" rows="3" dir="auto">{{ values[spec.key] }}</textarea>
-    <button class="btn btn--primary" type="submit">ذخیره</button>
-    {% if values[spec.key] != spec.default %}<button class="btn" type="submit" name="reset" value="1">بازگشت به پیش‌فرض</button>{% endif %}
+    {{ ui.field("value", spec.label, type="textarea", value=values[spec.key], attrs={"dir": "auto", "rows": "3"}) }}
+    <div class="d-flex flex-wrap gap-2">
+      {{ ui.btn("ذخیره", tone="primary", type="submit") }}
+      {% if values[spec.key] != spec.default %}{{ ui.btn("بازگشت به پیش‌فرض", type="submit", attrs={"name": "reset", "value": "1"}) }}{% endif %}
+    </div>
   </form>
   {% else %}
   {# No form at all for a role that may not save: a control that is drawn and
      then refused reads as broken rather than as a boundary. #}
-  <pre dir="auto" class="readonly">{{ values[spec.key] }}</pre>
+  {{ ui.code_block(values[spec.key]) }}
   {% endif %}
+{% endcall %}
 </div>
 {% endfor %}
 {% endblock %}

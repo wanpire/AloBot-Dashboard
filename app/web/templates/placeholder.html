@@ -1,6 +1,7 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-<div class="card">
+{% call ui.card() %}
   <p>بخش «{{ page_label(page_id) }}» در فاز بعدی ساخته می‌شود.</p>
-</div>
+{% endcall %}
 {% endblock %}

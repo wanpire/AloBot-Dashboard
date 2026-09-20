@@ -1,34 +1,48 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">زمان‌بندی ذخیره شد.</div>{% endif %}
-<div class="card">
-  <h2>کارهای زمان‌بندی‌شدهٔ آلوبات</h2>
+{% if notice == "saved" %}{{ ui.toast("زمان‌بندی ذخیره شد.", tone="success") }}{% endif %}
+{% call ui.card("کارهای زمان‌بندی‌شدهٔ آلوبات") %}
   {% if not alobot_available %}
-    <p class="hint">پایگاه‌دادهٔ آلوبات متصل نیست: {{ problems | join("، ") }}</p>
+  <p class="text-secondary">پایگاه‌دادهٔ آلوبات متصل نیست: {{ problems | join("، ") }}</p>
   {% else %}
-  <p class="hint">همه به وقت تهران. ساعت پیش‌فرض در کد آلوبات است و تغییرش این‌جا یک ردیف در تنظیمات ربات می‌نویسد.</p>
-  <table>
-    <thead><tr><th>کار</th><th>کلید</th><th>تناوب</th><th>ساعت</th><th>پیش‌فرض</th><th></th></tr></thead>
-    <tbody>{% for job in alobot_jobs %}
-      <tr>
-        <td>{{ job.label }}</td><td dir="ltr" class="hint">{{ job.key }}</td><td>{{ job.cadence_label }}</td>
-        <td>{{ job.time | fa }}{% if job.overridden %} <span class="badge">تغییر داده‌شده</span>{% endif %}</td>
-        <td class="hint">{{ job.default_time | fa }}</td>
-        <td>{% if alobot_writes and operator.role == "ADMIN" %}
-          <form method="post" action="/cron/{{ job.key }}" class="inline">
-            <input type="number" name="hour" value="{{ job.hour }}" min="0" max="23" style="width:5rem">:<input type="number" name="minute" value="{{ job.minute }}" min="0" max="59" style="width:5rem">
-            <button class="btn" type="submit">ذخیره</button>
-          </form>
-        {% endif %}</td>
-      </tr>
-    {% endfor %}</tbody>
-  </table>
+  <p class="text-secondary">همه به وقت تهران. ساعت پیش‌فرض در کد آلوبات است و تغییرش این‌جا یک ردیف در تنظیمات ربات می‌نویسد.</p>
+  {% call ui.table(["کار", "کلید", "تناوب", "ساعت", "پیش‌فرض", ""]) %}
+    {% for job in alobot_jobs %}
+    {% call ui.row() %}
+      {% call ui.cell("کار") %}{{ job.label }}{% endcall %}
+      {% call ui.cell("کلید") %}<span class="text-secondary" dir="ltr">{{ job.key }}</span>{% endcall %}
+      {% call ui.cell("تناوب") %}{{ job.cadence_label }}{% endcall %}
+      {% call ui.cell("ساعت") %}{{ job.time | fa }}{% if job.overridden %} {{ ui.state_badge("", label="تغییر داده‌شده") }}{% endif %}{% endcall %}
+      {% call ui.cell("پیش‌فرض") %}<span class="text-secondary">{{ job.default_time | fa }}</span>{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if alobot_writes and operator.role == "ADMIN" %}
+        <form method="post" action="/cron/{{ job.key }}" class="d-flex align-items-center gap-1">
+          {{ ui.inline_input("hour", type="number", value=job.hour, attrs={"min": "0", "max": "23", "class": "form-control form-control-sm ui-time"}) }}
+          :
+          {{ ui.inline_input("minute", type="number", value=job.minute, attrs={"min": "0", "max": "59", "class": "form-control form-control-sm ui-time"}) }}
+          {{ ui.btn("ذخیره", size="sm", type="submit") }}
+        </form>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
   {% endif %}
-</div>
-<div class="card" style="margin-top:16px">
-  <h2>سوییپ‌های این داشبورد</h2>
-  <p class="hint">این‌ها ساعت ندارند و نباید داشته باشند: هر چرخهٔ حلقه اجرا می‌شوند و آنچه تصمیم می‌گیرد کاری «موعدش رسیده» یا نه، یک آستانه است نه یک ساعت.</p>
-  <table><thead><tr><th>سوییپ</th><th>چه می‌کند</th><th>هر</th></tr></thead>
-  <tbody>{% for s in our_sweeps %}<tr><td dir="ltr">{{ s.name }}</td><td>{{ s.what }}</td><td>{{ s.every_seconds | int | fa_number }} ثانیه</td></tr>{% endfor %}</tbody></table>
+{% endcall %}
+
+<div class="mt-3">
+{% call ui.card("سوییپ‌های این داشبورد") %}
+  <p class="text-secondary">این‌ها ساعت ندارند و نباید داشته باشند: هر چرخهٔ حلقه اجرا می‌شوند و آنچه تصمیم می‌گیرد کاری «موعدش رسیده» یا نه، یک آستانه است نه یک ساعت.</p>
+  {% call ui.table(["سوییپ", "چه می‌کند", "هر"]) %}
+    {% for s in our_sweeps %}
+    {% call ui.row() %}
+      {% call ui.cell("سوییپ") %}<span dir="ltr">{{ s.name }}</span>{% endcall %}
+      {% call ui.cell("چه می‌کند") %}{{ s.what }}{% endcall %}
+      {% call ui.cell("هر") %}{{ s.every_seconds | int | fa_number }} ثانیه{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+{% endcall %}
 </div>
 {% endblock %}

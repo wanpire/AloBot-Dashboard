@@ -109,3 +109,7 @@ body {
   padding: .5rem .75rem;
   font-size: .8125rem;
 }
+
+/* The hour and minute boxes on the cron screen: wide enough for two digits
+   and no wider, so the two sit either side of the colon as one control. */
+.ui-time { width: 5rem; }
