@@ -45,6 +45,14 @@ def render(page_id: str | None = "payments") -> str:
     )
 
 
+def test_nothing_html_is_served_from_the_static_directory():
+    """The static mount needs no login. A rendered page there is a page of the
+    panel that anybody can open, which is how the shell preview briefly became
+    publicly reachable."""
+    stray = [p.name for p in STATIC.rglob("*.html")]
+    assert stray == [], f"HTML served without authentication: {stray}"
+
+
 def test_the_shell_renders():
     html = render()
     assert html.lstrip().startswith("<!doctype html>")
