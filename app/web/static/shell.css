@@ -44,3 +44,42 @@ body {
 .nav-group-toggle[aria-expanded="true"] .nav-group-caret {
   transform: rotate(90deg);
 }
+
+/* ── Tables that stack instead of scrolling ───────────────────────────────
+   A table on a phone can shrink until it is unreadable or scroll sideways so
+   the row's actions fall off the edge. Below md each row becomes a card and
+   each cell carries its column name, which the `cell` macro puts in
+   data-label. Above md it is an ordinary table and none of this applies. */
+
+.ui-table-wrap { width: 100%; }
+
+@media (max-width: 767.98px) {
+  .ui-table, .ui-table tbody, .ui-table tr, .ui-table td { display: block; width: 100%; }
+  .ui-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ui-table .ui-row {
+    border: 1px solid var(--tblr-border-color);
+    border-radius: var(--tblr-border-radius);
+    margin-bottom: .75rem;
+    padding: .25rem .75rem;
+  }
+  .ui-table .ui-cell {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 0;
+    border-bottom: 1px solid var(--tblr-border-color-light);
+    padding: .5rem 0;
+  }
+  /* The column name, shown only in the stacked layout. */
+  .ui-table .ui-cell::before {
+    content: attr(data-label);
+    color: var(--tblr-secondary);
+    font-size: .8125rem;
+    flex: 0 0 auto;
+  }
+  .ui-table .ui-cell[data-label=""]::before { content: none; }
+  /* Actions become the card's footer rather than a labelled field. */
+  .ui-table .ui-cell-actions { border-bottom: 0; justify-content: flex-start; }
+  .ui-table .ui-cell-actions > div { justify-content: flex-start !important; }
+  .ui-table .ui-row .ui-cell:last-child { border-bottom: 0; }
+}

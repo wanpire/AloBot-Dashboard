@@ -1,0 +1,318 @@
+{#
+  The component library. Every screen built from the Tabler shell is assembled
+  from these macros, and no page template writes a framework class of its own:
+  when Tabler's class names move, they move here and nowhere else.
+
+  Two rules hold throughout.
+
+  **Every macro forwards arbitrary attributes onto the element it renders.**
+  Jinja calls cannot take `**{"hx-get": ...}`, so there are two doors:
+  `attrs={"hx-get": "/x"}` for names that are not Python identifiers, and
+  ordinary keywords whose underscores become dashes (`data_testid="row"` →
+  `data-testid="row"`). Without this the macros could not host an hx-* or a
+  data-testid, and every screen would have to break out of them.
+
+  **Nothing here decides anything.** Macros format what they are handed. The
+  one lookup table, STATE_TONES, is a colour and a default word per state - a
+  presentation choice - and a test holds it against the model constants so it
+  cannot fall behind them.
+
+  Directions are logical throughout: ms/me, start/end, text-start/text-end.
+  There is no `left` or `right` in this file, because the panel is RTL and a
+  hardcoded side is a bug waiting for the first English label.
+#}
+
+{# ── Attribute plumbing ──────────────────────────────────────────────── #}
+
+{%- macro _attrs(extra, keywords, classes="") -%}
+  {%- set merged = {} -%}
+  {%- for key, value in (extra or {}).items() -%}
+    {%- if merged.update({key: value}) -%}{%- endif -%}
+  {%- endfor -%}
+  {%- for key, value in (keywords or {}).items() -%}
+    {%- if key not in ("class_", "caller") -%}
+      {%- if merged.update({key | replace("_", "-"): value}) -%}{%- endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+  {%- set final_class = (classes ~ " " ~ (keywords.get("class_") or "")) | trim -%}
+  {%- if final_class %} class="{{ final_class }}"{% endif -%}
+  {{- merged | xmlattr -}}
+{%- endmacro -%}
+
+{# ── Icons ───────────────────────────────────────────────────────────── #}
+
+{#
+  Inline SVG, one file per icon, only the ones actually used. No icon font is
+  loaded. They inherit `currentColor`, so an icon is the colour of the text
+  beside it in either theme.
+
+  The files live in `templates/icons/` rather than `static/icons/`: Jinja can
+  only include from the template loader's root, and pointing the loader at the
+  static directory means editing app/web/templating.py, which this track may
+  not touch. Say the word and I will move them.
+#}
+{%- macro icon(name, size=20) -%}
+<span class="ui-icon d-inline-flex" style="width:{{ size }}px;height:{{ size }}px" aria-hidden="true">
+  {%- include "icons/" ~ name ~ ".svg" ignore missing -%}
+</span>
+{%- endmacro -%}
+
+{# ── State colours: the one central mapping ──────────────────────────── #}
+
+{#
+  Keyed `family:VALUE`, because the same word means different things in
+  different places: a PENDING claim is waiting for the bank, a PENDING
+  notification is waiting for a sender, a PENDING account is waiting for a
+  human. Each entry is [Tabler colour, default Persian word]; a caller that
+  already holds a translated label passes it and only the colour is taken.
+#}
+{% set STATE_TONES = {
+  "claim:PENDING": ["yellow", "در انتظار"],
+  "claim:AUTO_VERIFIED": ["green", "تایید خودکار"],
+  "claim:MANUAL_VERIFIED": ["green", "تایید دستی"],
+  "claim:REJECTED": ["red", "رد شده"],
+  "claim:FAKE": ["red", "جعلی"],
+  "claim:FULFILLED_UNRECONCILED": ["orange", "تحویل بدون تطبیق"],
+
+  "match:SUGGESTED": ["yellow", "نامزد"],
+  "match:AUTO_VERIFIED": ["green", "تطبیق خودکار"],
+  "match:CONFIRMED": ["green", "تایید شده"],
+  "match:REJECTED": ["secondary", "کنار گذاشته"],
+
+  "notification:PENDING": ["yellow", "در صف ارسال"],
+  "notification:SENT": ["green", "ارسال شد"],
+  "notification:FAILED": ["orange", "ناموفق، تلاش دوباره"],
+  "notification:DEAD": ["red", "تحویل نشد"],
+
+  "broadcast:PENDING": ["yellow", "در صف"],
+  "broadcast:SENDING": ["blue", "در حال ارسال"],
+  "broadcast:DONE": ["green", "پایان"],
+
+  "recipient:PENDING": ["yellow", "در صف"],
+  "recipient:SENT": ["green", "ارسال شد"],
+  "recipient:FAILED": ["red", "ناموفق"],
+
+  "account:PENDING": ["yellow", "در انتظار تایید"],
+  "account:ACTIVE": ["green", "فعال"],
+  "account:MUTED": ["secondary", "بی‌صدا"],
+  "account:DECLINED": ["red", "رد شده"],
+
+  "card:ACTIVE": ["green", "فعال"],
+  "card:DISABLED": ["secondary", "غیرفعال"],
+
+  "credential:ACTIVE": ["green", "فعال"],
+  "credential:REVOKED": ["red", "باطل شده"],
+
+  "direction:CREDIT": ["green", "واریز"],
+  "direction:DEBIT": ["secondary", "برداشت"],
+  "direction:UNKNOWN": ["secondary", "نامشخص"],
+
+  "disposition:ACTIONABLE": ["blue", "قابل تطبیق"],
+  "disposition:DECLINED_INCOME": ["secondary", "درآمد نیست"],
+  "disposition:IGNORED": ["secondary", "نادیده"],
+
+  "classification:BANK_TRANSACTION": ["blue", "تراکنش بانکی"],
+  "classification:BALANCE": ["azure", "اعلام موجودی"],
+  "classification:OTP": ["secondary", "رمز یکبارمصرف"],
+  "classification:PROMOTIONAL": ["secondary", "تبلیغاتی"],
+  "classification:UNKNOWN": ["yellow", "ناشناخته"],
+
+  "role:ADMIN": ["blue", "ADMIN"],
+  "role:REVIEWER": ["azure", "REVIEWER"],
+  "role:READ_ONLY": ["secondary", "READ_ONLY"],
+
+  "payment:pending": ["yellow", "در انتظار"],
+  "payment:approved": ["green", "تایید شده"],
+  "payment:rejected": ["red", "رد شده"],
+  "payment:revoked": ["secondary", "لغو شده"],
+} %}
+
+{%- macro state_badge(value, family="", label=None, attrs=None) -%}
+  {%- set entry = STATE_TONES.get(family ~ ":" ~ value) or STATE_TONES.get(value) or ["secondary", value] -%}
+  <span{{ _attrs(attrs, kwargs, "badge bg-" ~ entry[0] ~ " text-" ~ entry[0] ~ "-fg") }}>{{ label or entry[1] }}</span>
+{%- endmacro -%}
+
+{# ── Page furniture ──────────────────────────────────────────────────── #}
+
+{%- macro page_header(title, subtitle="", attrs=None) -%}
+<div{{ _attrs(attrs, kwargs, "page-header d-print-none mb-3") }}>
+  <div class="row g-2 align-items-center">
+    <div class="col">
+      <h2 class="page-title mb-0">{{ title }}</h2>
+      {% if subtitle %}<div class="text-secondary mt-1">{{ subtitle }}</div>{% endif %}
+    </div>
+    {% if caller %}<div class="col-auto ms-auto d-print-none">{{ caller() }}</div>{% endif %}
+  </div>
+</div>
+{%- endmacro -%}
+
+{%- macro card(title="", footer="", attrs=None) -%}
+<div{{ _attrs(attrs, kwargs, "card") }}>
+  {% if title %}<div class="card-header"><h3 class="card-title">{{ title }}</h3></div>{% endif %}
+  <div class="card-body">{{ caller() }}</div>
+  {% if footer %}<div class="card-footer text-secondary">{{ footer }}</div>{% endif %}
+</div>
+{%- endmacro -%}
+
+{%- macro stat_tile(label, value, hint="", tone="", attrs=None) -%}
+<div{{ _attrs(attrs, kwargs, "card") }}>
+  <div class="card-body">
+    <div class="subheader">{{ label }}</div>
+    <div class="h1 mb-0{% if tone %} text-{{ tone }}{% endif %}">{{ value }}</div>
+    {% if hint %}<div class="text-secondary mt-1">{{ hint }}</div>{% endif %}
+  </div>
+</div>
+{%- endmacro -%}
+
+{# ── Tables ──────────────────────────────────────────────────────────── #}
+
+{#
+  A table on a phone has two bad options: shrink until it is unreadable, or
+  scroll sideways so the row's actions fall off the edge. This does neither.
+  Below md every row becomes a stacked card and each cell shows its column
+  name, which is why `cell` wants the header text: it becomes the label.
+  The rules live in shell.css under `.ui-table`.
+
+  Usage:
+    {% call ui.table(["مشتری", "مبلغ"]) %}
+      {% call ui.row() %}
+        {% call ui.cell("مشتری") %}…{% endcall %}
+        {% call ui.actions_cell() %}…{% endcall %}
+      {% endcall %}
+    {% endcall %}
+#}
+{%- macro table(columns, attrs=None) -%}
+<div class="ui-table-wrap">
+  <table{{ _attrs(attrs, kwargs, "table table-vcenter card-table ui-table") }}>
+    <thead>
+      <tr>
+        {% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>{{ caller() }}</tbody>
+  </table>
+</div>
+{%- endmacro -%}
+
+{%- macro row(attrs=None) -%}
+<tr{{ _attrs(attrs, kwargs, "ui-row") }}>{{ caller() }}</tr>
+{%- endmacro -%}
+
+{%- macro cell(label="", align="", attrs=None) -%}
+<td{{ _attrs(attrs, kwargs, "ui-cell" ~ (" text-" ~ align if align else "")) }} data-label="{{ label }}">{{ caller() }}</td>
+{%- endmacro -%}
+
+{#  The per-row actions slot: last cell, aligned to the inline end, and on a
+    phone it becomes the card's footer row rather than a labelled field. #}
+{%- macro actions_cell(label="", attrs=None) -%}
+<td{{ _attrs(attrs, kwargs, "ui-cell ui-cell-actions text-end") }} data-label="{{ label }}">
+  <div class="d-flex gap-2 justify-content-end flex-wrap">{{ caller() }}</div>
+</td>
+{%- endmacro -%}
+
+{# ── Controls ────────────────────────────────────────────────────────── #}
+
+{%- macro btn(label, tone="", size="", type="button", href=None, icon_name=None, disabled=False, attrs=None) -%}
+  {%- set classes = "btn" ~ (" btn-" ~ tone if tone else "") ~ (" btn-" ~ size if size else "") -%}
+  {%- if href -%}
+  <a href="{{ href }}"{{ _attrs(attrs, kwargs, classes) }}>{% if icon_name %}{{ icon(icon_name) }} {% endif %}{{ label }}</a>
+  {%- else -%}
+  <button type="{{ type }}"{% if disabled %} disabled{% endif %}{{ _attrs(attrs, kwargs, classes) }}>{% if icon_name %}{{ icon(icon_name) }} {% endif %}{{ label }}</button>
+  {%- endif -%}
+{%- endmacro -%}
+
+{#
+  A control that cannot be pressed by accident: the box must be ticked before
+  the button does anything. The gate is the SERVER's rule - these routes
+  already refuse a post without `confirm=1` - and this only makes the rule
+  visible. Nothing here enforces it.
+#}
+{%- macro confirm_button(label, consequence, action, tone="btn-danger", name="confirm", attrs=None) -%}
+<form method="post" action="{{ action }}"{{ _attrs(attrs, kwargs, "d-inline-flex flex-wrap align-items-center gap-2") }}>
+  <label class="form-check form-check-inline m-0">
+    <input class="form-check-input" type="checkbox" name="{{ name }}" value="1">
+    <span class="form-check-label">{{ consequence }}</span>
+  </label>
+  <button class="btn {{ tone }}" type="submit">{{ label }}</button>
+</form>
+{%- endmacro -%}
+
+{%- macro field(name, label, value="", type="text", hint="", required=False, error="", options=None, attrs=None) -%}
+<div class="mb-3">
+  <label class="form-label{% if required %} required{% endif %}" for="field-{{ name }}">{{ label }}</label>
+  {%- if options is not none -%}
+  <select id="field-{{ name }}" name="{{ name }}"{% if required %} required{% endif %}{{ _attrs(attrs, kwargs, "form-select" ~ (" is-invalid" if error else "")) }}>
+    {% for option_value, option_label in options %}
+    <option value="{{ option_value }}"{% if option_value == value %} selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+  </select>
+  {%- elif type == "textarea" -%}
+  <textarea id="field-{{ name }}" name="{{ name }}" rows="3"{% if required %} required{% endif %}{{ _attrs(attrs, kwargs, "form-control" ~ (" is-invalid" if error else "")) }}>{{ value }}</textarea>
+  {%- else -%}
+  <input id="field-{{ name }}" type="{{ type }}" name="{{ name }}" value="{{ value }}"{% if required %} required{% endif %}{{ _attrs(attrs, kwargs, "form-control" ~ (" is-invalid" if error else "")) }}>
+  {%- endif -%}
+  {% if error %}<div class="invalid-feedback d-block">{{ error }}</div>{% endif %}
+  {% if hint %}<small class="form-hint">{{ hint }}</small>{% endif %}
+</div>
+{%- endmacro -%}
+
+{%- macro form_errors(errors, title="", attrs=None) -%}
+  {%- if errors -%}
+  <div role="alert"{{ _attrs(attrs, kwargs, "alert alert-danger") }}>
+    {% if title %}<h4 class="alert-title">{{ title }}</h4>{% endif %}
+    {%- if errors is string -%}
+      <div>{{ errors }}</div>
+    {%- else -%}
+      <ul class="mb-0 ps-3">{% for message in errors %}<li>{{ message }}</li>{% endfor %}</ul>
+    {%- endif -%}
+  </div>
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- macro empty_state(title, hint="", icon_name="inbox", attrs=None) -%}
+<div{{ _attrs(attrs, kwargs, "empty") }}>
+  <div class="empty-icon text-secondary">{{ icon(icon_name, 40) }}</div>
+  <p class="empty-title">{{ title }}</p>
+  {% if hint %}<p class="empty-subtitle text-secondary">{{ hint }}</p>{% endif %}
+  {% if caller %}<div class="empty-action">{{ caller() }}</div>{% endif %}
+</div>
+{%- endmacro -%}
+
+{#
+  A notice that something happened. `tone` is Tabler's: success, danger,
+  warning, info. Dismissible, and it announces itself to a screen reader.
+#}
+{%- macro toast(message, tone="info", dismissible=True, attrs=None) -%}
+<div role="status" aria-live="polite"{{ _attrs(attrs, kwargs, "alert alert-" ~ tone ~ (" alert-dismissible" if dismissible else "")) }}>
+  <div>{{ message }}</div>
+  {% if dismissible %}<a class="btn-close" data-bs-dismiss="alert" aria-label="بستن"></a>{% endif %}
+</div>
+{%- endmacro -%}
+
+{#
+  Pages are numbered from 1. `url_for_page` is a caller-supplied string with
+  `{page}` in it, so this macro never builds a query string of its own.
+#}
+{%- macro pagination(page, pages, url_for_page, attrs=None) -%}
+  {%- if pages > 1 -%}
+  <nav aria-label="صفحه‌بندی"{{ _attrs(attrs, kwargs, "d-flex justify-content-center mt-3") }}>
+    <ul class="pagination m-0">
+      <li class="page-item{% if page <= 1 %} disabled{% endif %}">
+        <a class="page-link" href="{{ url_for_page | replace('{page}', page - 1) }}" aria-label="قبلی">{{ icon("chevron-end", 16) }}</a>
+      </li>
+      {% for number in range(1, pages + 1) %}
+        {% if number == 1 or number == pages or (number >= page - 1 and number <= page + 1) %}
+        <li class="page-item{% if number == page %} active{% endif %}">
+          <a class="page-link" href="{{ url_for_page | replace('{page}', number) }}"{% if number == page %} aria-current="page"{% endif %}>{{ number | fa_number }}</a>
+        </li>
+        {% elif number == page - 2 or number == page + 2 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item{% if page >= pages %} disabled{% endif %}">
+        <a class="page-link" href="{{ url_for_page | replace('{page}', page + 1) }}" aria-label="بعدی">{{ icon("chevron-start", 16) }}</a>
+      </li>
+    </ul>
+  </nav>
+  {%- endif -%}
+{%- endmacro -%}
