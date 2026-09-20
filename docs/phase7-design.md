@@ -208,3 +208,33 @@ are tangled up with the staging deployment you deferred.
 
 Then the manual walk-through: a real purchase, a renewal and a trial, by hand,
 before Phase 7 is called done.
+
+---
+
+## Known limitations, accepted rather than fixed
+
+Three properties of the shipped Phase 7 work that are real, understood and
+deliberately not addressed. They are written down here so that nobody later
+mistakes them for oversights.
+
+**The reseller balance check happens before the lock.** In AloBot's buy flow
+the "is there enough balance" test reads the row in an earlier session with no
+lock, and only the deduction that follows takes the row lock. So a balance
+that changes between the check and the deduction could in principle let a
+purchase through that the check would have refused. It is practically
+unreachable: it needs a top-up or another purchase to land inside a window of
+a few milliseconds, and the outcome is a reseller going slightly negative
+rather than money being lost. Moving the check inside the lock would widen a
+diff that was deliberately kept to the lock itself.
+
+**A deleted and recreated discount code inherits its own history.** The
+per-customer limit counts rows in `discount_code_usages` by the code's text,
+because that log keeps the code as a snapshot and its foreign key is set to
+NULL when the code is deleted. So a code deleted and recreated with the same
+name still counts the old uses against a customer. Counting by id instead
+would lose the history whenever a code is deleted, which is the worse failure.
+
+**AloBot's own Telegram admin panel cannot set the two new discount fields.**
+Expiry and per-customer limit are settable from the dashboard only. A code
+created in Telegram simply has NULL in both, which means today's behaviour, so
+nothing breaks; the two interfaces just do not offer the same things.
