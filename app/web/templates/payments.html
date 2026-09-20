@@ -144,15 +144,15 @@
 
             <div class="d-flex flex-wrap gap-2 mt-2">
               <form method="post" action="/payments/{{ c.id }}/verify-manual?tab={{ tab }}" class="d-flex gap-1">
-                <input type="text" name="note" class="form-control form-control-sm" placeholder="دلیل تایید بدون تراکنش" required>
+                {{ ui.inline_input("note", placeholder="دلیل تایید بدون تراکنش", required=True) }}
                 {{ ui.btn("تایید دستی", size="sm", type="submit") }}
               </form>
               <form method="post" action="/payments/{{ c.id }}/reject?tab={{ tab }}" class="d-flex gap-1">
-                <input type="text" name="note" class="form-control form-control-sm" placeholder="دلیل رد">
+                {{ ui.inline_input("note", placeholder="دلیل رد") }}
                 {{ ui.btn("رد", size="sm", type="submit") }}
               </form>
               <form method="post" action="/payments/{{ c.id }}/fake?tab={{ tab }}" class="d-flex gap-1">
-                <input type="text" name="note" class="form-control form-control-sm" placeholder="چرا جعلی">
+                {{ ui.inline_input("note", placeholder="چرا جعلی") }}
                 {{ ui.btn("جعلی", size="sm", type="submit") }}
               </form>
               {% if c.parked_at %}
@@ -161,9 +161,9 @@
               <form method="post" action="/payments/{{ c.id }}/park?tab={{ tab }}">{{ ui.btn("کنار بگذار", size="sm", type="submit") }}</form>
               {% endif %}
               <form method="post" action="/payments/{{ c.id }}/message?tab={{ tab }}" class="d-flex gap-1">
-                <select name="template" class="form-select form-select-sm">
-                  {% for k, (name, body) in templates.items() %}<option value="{{ k }}" title="{{ body }}">{{ name }}</option>{% endfor %}
-                </select>
+                {% set message_options = [] %}
+                {% for k, (name, body) in templates.items() %}{% set _ = message_options.append((k, name, body)) %}{% endfor %}
+                {{ ui.inline_select("template", message_options) }}
                 {{ ui.btn("پیام به مشتری", size="sm", type="submit") }}
               </form>
             </div>

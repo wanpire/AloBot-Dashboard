@@ -51,8 +51,8 @@
   static directory means editing app/web/templating.py, which this track may
   not touch. Say the word and I will move them.
 #}
-{%- macro icon(name, size=20) -%}
-<span class="ui-icon d-inline-flex" style="width:{{ size }}px;height:{{ size }}px" aria-hidden="true">
+{%- macro icon(name, size="md") -%}
+<span class="ui-icon ui-icon-{{ size }} d-inline-flex" aria-hidden="true">
   {%- include "icons/" ~ name ~ ".svg" ignore missing -%}
 </span>
 {%- endmacro -%}
@@ -256,6 +256,24 @@
 </div>
 {%- endmacro -%}
 
+{#
+  A single control with no label of its own, for an inline action form where
+  the button says what the input is for. `field` would wrap it in a label and
+  a margin, which is right on a form and wrong inside a row of actions.
+#}
+{%- macro inline_input(name, placeholder="", type="text", size="sm", required=False, value="", attrs=None) -%}
+<input type="{{ type }}" name="{{ name }}" value="{{ value }}" placeholder="{{ placeholder }}"
+       {% if required %}required{% endif %}{{ _attrs(attrs, kwargs, "form-control" ~ (" form-control-" ~ size if size else "")) }}>
+{%- endmacro -%}
+
+{%- macro inline_select(name, options, value="", size="sm", attrs=None) -%}
+<select name="{{ name }}"{{ _attrs(attrs, kwargs, "form-select" ~ (" form-select-" ~ size if size else "")) }}>
+  {% for option_value, option_label, option_title in options %}
+  <option value="{{ option_value }}"{% if option_title %} title="{{ option_title }}"{% endif %}{% if option_value == value %} selected{% endif %}>{{ option_label }}</option>
+  {% endfor %}
+</select>
+{%- endmacro -%}
+
 {%- macro form_errors(errors, title="", attrs=None) -%}
   {%- if errors -%}
   <div role="alert"{{ _attrs(attrs, kwargs, "alert alert-danger") }}>
@@ -271,7 +289,7 @@
 
 {%- macro empty_state(title, hint="", icon_name="inbox", attrs=None) -%}
 <div{{ _attrs(attrs, kwargs, "empty") }}>
-  <div class="empty-icon text-secondary">{{ icon(icon_name, 40) }}</div>
+  <div class="empty-icon text-secondary">{{ icon(icon_name, "lg") }}</div>
   <p class="empty-title">{{ title }}</p>
   {% if hint %}<p class="empty-subtitle text-secondary">{{ hint }}</p>{% endif %}
   {% if caller %}<div class="empty-action">{{ caller() }}</div>{% endif %}
@@ -298,7 +316,7 @@
   <nav aria-label="صفحه‌بندی"{{ _attrs(attrs, kwargs, "d-flex justify-content-center mt-3") }}>
     <ul class="pagination m-0">
       <li class="page-item{% if page <= 1 %} disabled{% endif %}">
-        <a class="page-link" href="{{ url_for_page | replace('{page}', page - 1) }}" aria-label="قبلی">{{ icon("chevron-end", 16) }}</a>
+        <a class="page-link" href="{{ url_for_page | replace('{page}', page - 1) }}" aria-label="قبلی">{{ icon("chevron-end", "sm") }}</a>
       </li>
       {% for number in range(1, pages + 1) %}
         {% if number == 1 or number == pages or (number >= page - 1 and number <= page + 1) %}
@@ -310,7 +328,7 @@
         {% endif %}
       {% endfor %}
       <li class="page-item{% if page >= pages %} disabled{% endif %}">
-        <a class="page-link" href="{{ url_for_page | replace('{page}', page + 1) }}" aria-label="بعدی">{{ icon("chevron-start", 16) }}</a>
+        <a class="page-link" href="{{ url_for_page | replace('{page}', page + 1) }}" aria-label="بعدی">{{ icon("chevron-start", "sm") }}</a>
       </li>
     </ul>
   </nav>

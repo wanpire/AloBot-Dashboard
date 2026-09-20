@@ -92,3 +92,9 @@ body {
   border: 1px solid var(--tblr-border-color);
   display: block;
 }
+
+/* Icon sizes as classes rather than an inline style, so no page or macro in
+   the new layer writes `style="…"` at all. */
+.ui-icon-sm { width: 16px; height: 16px; }
+.ui-icon-md { width: 20px; height: 20px; }
+.ui-icon-lg { width: 40px; height: 40px; }
