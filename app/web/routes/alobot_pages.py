@@ -122,6 +122,18 @@ async def resellers(request: Request, operator=Depends(page("resellers"))):
         return _unavailable(request, "resellers")
     async with link.session() as s:
         rows = await queries.resellers(s)
-    return render(request, "resellers.html", page_id="resellers", rows=rows, **_ctx())
+    # AloBot keeps no history of a balance change, so what this project added
+    # is only knowable from this project's own ledger.
+    from sqlalchemy import select
+
+    from app.db.session import async_session_maker
+    from app.models import ResellerTopUp
+
+    async with async_session_maker() as own:
+        topups = (await own.execute(select(ResellerTopUp).order_by(ResellerTopUp.id.desc()).limit(20))).scalars().all()
+    return render(
+        request, "resellers.html", page_id="resellers", rows=rows, topups=topups,
+        error=request.query_params.get("error"), **_ctx(),
+    )
 
 

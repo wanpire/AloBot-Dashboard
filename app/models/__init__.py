@@ -18,12 +18,13 @@ from app.models.ingest import (
     TransactionCandidate,
 )
 from app.models.operator import Operator, OperatorSession
+from app.models.reseller import ResellerTopUp
 from app.models.setting import Setting
 
 __all__ = [
     "AppEvent", "AuditLog", "BankCardPrefix", "BankSmsPattern", "BotNotification", "Broadcast", "BroadcastRecipient",
     "Device", "DeviceCredential",
     "FinancialAccount", "FinancialAccountIdentifier", "Operator", "OperatorSession", "PaymentCard", "PaymentClaim",
-    "ReconciliationMatch", "Setting",
+    "ReconciliationMatch", "ResellerTopUp", "Setting",
     "SmsEvent", "TransactionCandidate",
 ]

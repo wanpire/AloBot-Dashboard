@@ -26,6 +26,7 @@ from app.alobot.writes import WritesDisabled, writes
 from app.alobot.writes import admins as admin_writes
 from app.alobot.writes import botsettings as botsettings_writes
 from app.alobot.writes import botusers as botusers_writes
+from app.alobot.writes import resellers as reseller_writes
 from app.alobot.writes import catalog as catalog_writes
 from app.alobot.writes import content as content_writes
 from app.alobot.writes import cron as cron_writes
@@ -40,7 +41,7 @@ ADMIN = require_role("ADMIN")
 EDIT_ERRORS = (
     WritesDisabled, catalog_writes.CatalogError, discount_writes.DiscountError, content_writes.ContentError,
     botsettings_writes.SettingsError, admin_writes.AdminError, cron_writes.CronError, bot_content.ContentError,
-    botusers_writes.BotUserError,
+    botusers_writes.BotUserError, reseller_writes.ResellerError,
     broadcast.BroadcastError,
 )
 
@@ -444,3 +445,19 @@ async def customer_block(request: Request, telegram_id: int, operator=Depends(AD
 @router.post("/customers/{telegram_id}/unblock")
 async def customer_unblock(request: Request, telegram_id: int, operator=Depends(ADMIN), db: AsyncSession = Depends(get_db)):
     return await _customer_action(request, db, telegram_id, botusers_writes.unblock, operator)
+
+
+# ── Reseller balance ───────────────────────────────────────────────────────
+
+
+@router.post("/resellers/{telegram_id}/topup")
+async def reseller_topup(
+    request: Request, telegram_id: int, amount: str = Form(""), note: str = Form(""),
+    operator=Depends(ADMIN), db: AsyncSession = Depends(get_db),
+):
+    try:
+        toman = _decimal(amount, "مبلغ شارژ")
+        await reseller_writes.top_up(db, operator, telegram_id=telegram_id, amount_toman=toman, note=note.strip()[:200] or None)
+    except EDIT_ERRORS as exc:
+        return RedirectResponse(f"/resellers?error={quote(str(exc))}", status_code=303)
+    return RedirectResponse("/resellers", status_code=303)

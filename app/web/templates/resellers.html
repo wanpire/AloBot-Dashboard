@@ -3,12 +3,34 @@
 {% include "_alobot_banner.html" %}
 <div class="card">
   <table>
-    <thead><tr><th>شناسهٔ تلگرام</th><th>نام کاربری</th><th>موجودی</th><th>پورسانت</th><th>اکانت‌ها</th><th>از تاریخ</th></tr></thead>
+    <thead><tr><th>شناسهٔ تلگرام</th><th>نام کاربری</th><th>موجودی</th><th>پورسانت</th><th>اکانت‌ها</th><th>از تاریخ</th><th></th></tr></thead>
     <tbody>
     {% for r in rows %}
-      <tr><td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td><td dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</td><td>{{ r.balance | toman_amount }}</td><td>{{ r.commission_percent | int | fa_number }}٪</td><td>{{ r.accounts | fa_number }}</td><td>{{ r.created_at | jalali_dt }}</td></tr>
-    {% else %}<tr><td colspan="6" class="hint">نماینده‌ای ثبت نشده.</td></tr>{% endfor %}
+      <tr><td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td><td dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</td><td>{{ r.balance | toman_amount }}</td><td>{{ r.commission_percent | int | fa_number }}٪</td><td>{{ r.accounts | fa_number }}</td><td>{{ r.created_at | jalali_dt }}</td>
+        <td>{% if operator.role == "ADMIN" %}
+          <details><summary>شارژ</summary>
+            <form method="post" action="/resellers/{{ r.telegram_id }}/topup" class="inline">
+              <label>مبلغ (تومان) <input type="text" name="amount" inputmode="numeric" required></label>
+              <label>بابت <input type="text" name="note" maxlength="200" placeholder="مثلاً کارت به کارت"></label>
+              <button class="btn btn--primary" type="submit">افزودن به موجودی</button>
+            </form>
+          </details>
+        {% endif %}</td></tr>
+    {% else %}<tr><td colspan="7" class="hint">نماینده‌ای ثبت نشده.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
+{% if operator.role == "ADMIN" %}
+<div class="card" style="margin-top:16px">
+  <h2>شارژهای ثبت‌شده از این پنل</h2>
+  <p class="hint">آلوبات تاریخچه‌ای از تغییر موجودی نگه نمی‌دارد؛ این دفترچهٔ خود داشبورد است. ردیف «ثبت نشد» یعنی موجودی آن‌طور که باید تغییر نکرده و باید بررسی شود.</p>
+  <table>
+    <thead><tr><th>نماینده</th><th>مبلغ</th><th>موجودی پس از شارژ</th><th>بابت</th><th>توسط</th><th>زمان</th><th>وضعیت</th></tr></thead>
+    <tbody>{% for t in topups %}
+      <tr><td>{{ t.telegram_id | string | fa }}</td><td>{{ t.amount_irr | toman }}</td><td>{{ t.balance_after_irr | toman }}</td><td>{{ t.note or "—" }}</td><td dir="ltr">{{ t.operator_email }}</td><td>{{ t.created_at | jalali_dt }}</td>
+        <td>{% if t.verified %}<span class="badge">ثبت شد</span>{% else %}<span class="badge badge--count">ثبت نشد</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="7" class="hint">هنوز شارژی از این پنل ثبت نشده.</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
 {% endblock %}

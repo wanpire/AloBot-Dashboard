@@ -39,6 +39,7 @@ os.environ.setdefault("ALOBOT_DB_WRITES_ENABLED", "true")
 # customer's details" stays true while blocking one is possible.
 ALOBOT_COLUMN_GRANTS = (
     "GRANT INSERT (telegram_id, is_blocked), UPDATE (is_blocked) ON bot_users TO dashboard_rw",
+    "GRANT UPDATE (balance) ON resellers TO dashboard_rw",
 )
 
 ALOBOT_WRITABLE_TABLES = (
