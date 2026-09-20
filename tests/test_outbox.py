@@ -33,8 +33,8 @@ async def _pending():
 
 async def test_enqueue_is_idempotent_on_the_dedupe_key():
     async with async_session_maker() as s:
-        assert await outbox.enqueue(s, dedupe_key="k1", chat_id=1, text="a") is True
-        assert await outbox.enqueue(s, dedupe_key="k1", chat_id=1, text="b") is False
+        assert await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=1, text="a") is True
+        assert await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=1, text="b") is False
     rows = await _pending()
     assert len(rows) == 1 and rows[0].payload["text"] == "a" and rows[0].status == "PENDING"
 
@@ -43,7 +43,7 @@ async def test_enqueue_is_idempotent_on_the_dedupe_key():
 async def test_flush_sends_and_marks_sent(api):
     route = respx.post(URL).mock(return_value=httpx.Response(200, json={"ok": True, "result": {"message_id": 5}}))
     async with async_session_maker() as s:
-        await outbox.enqueue(s, dedupe_key="k1", chat_id=42, text="سلام", parse_mode="HTML")
+        await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=42, text="سلام", parse_mode="HTML")
         result = await outbox.flush(s, api, now=NOW)
     rows = await _pending()
     assert result["sent"] == 1 and rows[0].status == "SENT" and rows[0].sent_at is not None
@@ -54,9 +54,9 @@ async def test_flush_sends_and_marks_sent(api):
 async def test_blocked_bot_is_dead_immediately_and_the_key_stays_taken(api):
     respx.post(URL).mock(return_value=httpx.Response(403, json={"ok": False, "error_code": 403, "description": "Forbidden: bot was blocked by the user"}))
     async with async_session_maker() as s:
-        await outbox.enqueue(s, dedupe_key="k1", chat_id=42, text="x")
+        await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=42, text="x")
         await outbox.flush(s, api, now=NOW)
-        assert await outbox.enqueue(s, dedupe_key="k1", chat_id=42, text="x") is False
+        assert await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=42, text="x") is False
     rows = await _pending()
     assert rows[0].status == "DEAD" and rows[0].attempt_count == 1 and "blocked" in rows[0].last_error
 
@@ -65,7 +65,7 @@ async def test_blocked_bot_is_dead_immediately_and_the_key_stays_taken(api):
 async def test_server_error_backs_off_exponentially_and_dies_after_eight(api):
     respx.post(URL).mock(return_value=httpx.Response(502, text="bad gateway"))
     async with async_session_maker() as s:
-        await outbox.enqueue(s, dedupe_key="k1", chat_id=42, text="x")
+        await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=42, text="x")
         t = NOW
         delays = []
         for attempt in range(8):
@@ -82,7 +82,7 @@ async def test_server_error_backs_off_exponentially_and_dies_after_eight(api):
 async def test_rate_limit_honours_retry_after_without_charging_an_attempt(api):
     respx.post(URL).mock(return_value=httpx.Response(429, json={"ok": False, "error_code": 429, "parameters": {"retry_after": 17}}))
     async with async_session_maker() as s:
-        await outbox.enqueue(s, dedupe_key="k1", chat_id=42, text="x")
+        await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=42, text="x")
         await outbox.flush(s, api, now=NOW)
         row = (await s.execute(select(BotNotification))).scalar_one()
         await s.refresh(row)
@@ -94,7 +94,7 @@ async def test_flush_batch_limit_is_a_real_cap_on_a_full_table(api):
     respx.post(URL).mock(return_value=httpx.Response(200, json={"ok": True, "result": {}}))
     async with async_session_maker() as s:
         for i in range(30):
-            await outbox.enqueue(s, dedupe_key=f"k{i}", chat_id=i, text="x")
+            await outbox.enqueue(s, now=NOW, dedupe_key=f"k{i}", chat_id=i, text="x")
         result = await outbox.flush(s, api, now=NOW, limit=5)
     rows = await _pending()
     assert result["sent"] == 5 and sum(1 for r in rows if r.status == "SENT") == 5
@@ -102,7 +102,7 @@ async def test_flush_batch_limit_is_a_real_cap_on_a_full_table(api):
 
 async def test_flush_without_a_token_touches_nothing():
     async with async_session_maker() as s:
-        await outbox.enqueue(s, dedupe_key="k1", chat_id=1, text="x")
+        await outbox.enqueue(s, now=NOW, dedupe_key="k1", chat_id=1, text="x")
         result = await outbox.flush(s, None, now=NOW)
     assert result == {"skipped": "no_bot_token"}
     assert (await _pending())[0].status == "PENDING"

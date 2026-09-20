@@ -31,6 +31,39 @@ def stored_categories(categories: list[str] | None) -> str | None:
     return None
 
 
+BOUND_COLUMNS = ("expires_at", "per_user_limit")
+
+
+def bounds_available() -> bool:
+    """Whether AloBot's `discount_codes` has the expiry and per-customer
+    columns yet. Asked of the reflected schema rather than a flag in a file,
+    because the answer is a fact about the database this deployment is
+    pointed at, and a flag can be wrong."""
+    if not link.available:
+        return False
+    try:
+        columns = set(link.t("discount_codes").c.keys())
+    except KeyError:
+        return False
+    return all(column in columns for column in BOUND_COLUMNS)
+
+
+def _check_bounds(expires_at, per_user_limit, *, now=None) -> None:
+    if expires_at is None and per_user_limit is None:
+        return
+    if not bounds_available():
+        raise DiscountError(
+            "این نسخهٔ آلوبات هنوز ستون‌های «مهلت» و «سقف هر مشتری» را ندارد؛ تا اجرای مهاجرت، این دو فیلد قابل ذخیره نیستند."
+        )
+    if per_user_limit is not None and per_user_limit < 1:
+        raise DiscountError("سقف هر مشتری باید حداقل ۱ باشد، یا خالی برای بدون سقف.")
+    if expires_at is not None:
+        import datetime as _dt
+
+        if expires_at <= (now or _dt.datetime.now(_dt.timezone.utc)):
+            raise DiscountError("مهلت کد نمی‌تواند در گذشته باشد؛ کدی که همین حالا منقضی است بهتر است اصلاً ساخته نشود.")
+
+
 def _check(code: str, percent: Decimal, usage_limit: int | None, categories: list[str] | None) -> None:
     if not code:
         raise DiscountError("کد تخفیف خالی است.")
@@ -43,18 +76,28 @@ def _check(code: str, percent: Decimal, usage_limit: int | None, categories: lis
             raise DiscountError(f"نوع سرویس «{category}» وجود ندارد.")
 
 
-async def create(db: AsyncSession, actor, *, code: str, percent: Decimal, usage_limit: int | None, categories: list[str] | None, is_public: bool) -> None:
+async def create(
+    db: AsyncSession, actor, *, code: str, percent: Decimal, usage_limit: int | None, categories: list[str] | None,
+    is_public: bool, expires_at=None, per_user_limit: int | None = None,
+) -> None:
     code = normalize_code(code)
     _check(code, percent, usage_limit, categories)
+    _check_bounds(expires_at, per_user_limit)
     params: dict[str, Any] = {"code": code, "percent": percent, "usage_limit": usage_limit, "categories": stored_categories(categories), "is_public": is_public}
+    # The two bound columns are only named in the statement when AloBot has
+    # them, so this file works against both schemas without a flag.
+    extra_columns = ", expires_at, per_user_limit" if bounds_available() else ""
+    extra_values = ", :expires_at, :per_user_limit" if bounds_available() else ""
+    if bounds_available():
+        params |= {"expires_at": expires_at, "per_user_limit": per_user_limit}
     try:
         async with edit(db, actor, action="discount.create", entity_type="discount_code", entity_id=code) as a:
             await a.execute(
-                text("INSERT INTO discount_codes (code, percent, usage_limit, used_count, categories, is_active, is_public, created_at) "
-                     "VALUES (:code, :percent, :usage_limit, 0, :categories, true, :is_public, now())"),
+                text(f"INSERT INTO discount_codes (code, percent, usage_limit, used_count, categories, is_active, is_public, created_at{extra_columns}) "
+                     f"VALUES (:code, :percent, :usage_limit, 0, :categories, true, :is_public, now(){extra_values})"),
                 params,
             )
-            a.audit_after = {**params, "percent": str(percent)}
+            a.audit_after = {**params, "percent": str(percent), "expires_at": str(expires_at) if expires_at else None}
     except IntegrityError:
         raise DiscountError(f"کد «{code}» قبلاً ثبت شده است.") from None
 

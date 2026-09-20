@@ -22,11 +22,19 @@ LEASE = dt.timedelta(minutes=2)
 MAX_BACKOFF = dt.timedelta(hours=1)
 
 
-async def enqueue(session: AsyncSession, *, dedupe_key: str, chat_id: int, text_: str | None = None, text: str | None = None, parse_mode: str | None = "HTML", reply_markup: dict | None = None, commit: bool = True) -> bool:
+async def enqueue(session: AsyncSession, *, dedupe_key: str, chat_id: int, text_: str | None = None, text: str | None = None, parse_mode: str | None = "HTML", reply_markup: dict | None = None, commit: bool = True, now: dt.datetime | None = None) -> bool:
+    """`now` stamps when the message becomes due. Production leaves it unset
+    and takes the database's clock; a caller that is reasoning about a
+    particular moment (a test, a replay) passes it, so due-ness is decided by
+    the same clock as everything else in that call rather than by whatever
+    the wall clock happens to say."""
     payload: dict[str, Any] = {"text": text if text is not None else text_, "parse_mode": parse_mode}
     if reply_markup:
         payload["reply_markup"] = reply_markup
-    stmt = insert(BotNotification).values(dedupe_key=dedupe_key, chat_id=chat_id, payload=payload).on_conflict_do_nothing(index_elements=["dedupe_key"])
+    values: dict[str, Any] = {"dedupe_key": dedupe_key, "chat_id": chat_id, "payload": payload}
+    if now is not None:
+        values["next_attempt_at"] = now
+    stmt = insert(BotNotification).values(**values).on_conflict_do_nothing(index_elements=["dedupe_key"])
     result = await session.execute(stmt)
     if commit:
         await session.commit()

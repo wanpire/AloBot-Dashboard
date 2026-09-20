@@ -217,3 +217,17 @@ async def base_url():
     yield f"http://127.0.0.1:{port}"
     server.should_exit = True
     await task
+
+
+async def alobot_admin_execute(*statements: str) -> None:
+    """Run DDL on the AloBot COPY as its owner. Used by tests that need a
+    schema change AloBot has not merged yet, so this project's half can be
+    built and proven before that change lands."""
+    import asyncpg
+
+    conn = await asyncpg.connect(ALOBOT_ADMIN_URL.replace("postgresql+asyncpg://", "postgresql://"))
+    try:
+        for statement in statements:
+            await conn.execute(statement)
+    finally:
+        await conn.close()

@@ -57,6 +57,18 @@ def _decimal(raw: str, field: str) -> Decimal:
         raise catalog_writes.CatalogError(f"«{field}» باید یک عدد باشد.") from None
 
 
+def _expiry(raw: str) -> dt.datetime | None:
+    """A Jalali date an operator typed, read as the END of that day in
+    Tehran: "valid until 1405/10/10" means the tenth still works."""
+    if not str(raw or "").strip():
+        return None
+    from app.alobot.time import TEHRAN
+    from app.web.format import parse_jalali_date
+
+    day = parse_jalali_date(raw)
+    return dt.datetime.combine(day, dt.time(23, 59, 59), tzinfo=TEHRAN).astimezone(dt.timezone.utc)
+
+
 def _int_or_none(raw: str) -> int | None:
     raw = str(raw or "").strip()
     return int(raw) if raw.isdigit() else None
@@ -176,7 +188,7 @@ async def _discounts_page(request: Request, db: AsyncSession, status_code: int =
         return _unavailable(request, "discounts")
     async with link.session() as read:
         rows = await queries.discount_codes(read)
-    return render(request, "discounts.html", page_id="discounts", status_code=status_code, rows=rows, categories=catalog_writes.CATEGORIES, category_labels=CATEGORY_LABELS, labels={"category": CATEGORY_LABELS}, label=label, alobot_writes=writes.available, **ctx)
+    return render(request, "discounts.html", page_id="discounts", status_code=status_code, rows=rows, categories=catalog_writes.CATEGORIES, category_labels=CATEGORY_LABELS, labels={"category": CATEGORY_LABELS}, label=label, alobot_writes=writes.available, discount_bounds=discount_writes.bounds_available(), **ctx)
 
 
 @router.get("/discounts")
@@ -192,9 +204,14 @@ async def discounts_page(request: Request, operator=Depends(page("discounts")), 
 async def discounts_create(request: Request, operator=Depends(ADMIN), db: AsyncSession = Depends(get_db)):
     form = await request.form()
     categories = [c for c in catalog_writes.CATEGORIES if form.get(f"cat_{c}")]
+    try:
+        expires_at = _expiry(str(form.get("expires_at", "")))
+    except ValueError as exc:
+        return await _discounts_page(request, db, status_code=400, error=str(exc))
     failed = await _do(request, db, _discounts_page, discount_writes.create(
         db, operator, code=str(form.get("code", "")), percent=_decimal(form.get("percent", "0"), "درصد"),
         usage_limit=_int_or_none(form.get("usage_limit")), categories=categories or None, is_public=bool(form.get("is_public")),
+        expires_at=expires_at, per_user_limit=_int_or_none(form.get("per_user_limit")),
     ))
     return failed or RedirectResponse("/discounts?notice=saved", status_code=303)
 

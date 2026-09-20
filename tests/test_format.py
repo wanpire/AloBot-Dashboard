@@ -39,3 +39,25 @@ def test_jalali_date_matches_known_calendar_points(gregorian, jalali):
 def test_jalali_datetime_is_rendered_in_tehran_time():
     at = dt.datetime(2026, 9, 19, 21, 30, tzinfo=dt.timezone.utc)  # 01:00 next day in Tehran
     assert jalali_datetime(at) == "۱۴۰۵/۰۶/۲۹ ۰۱:۰۰"
+
+
+def test_a_typed_jalali_date_round_trips_through_the_converter():
+    """The inverse is only trustworthy if it agrees with the forward
+    conversion the whole panel already renders with."""
+    import datetime as dt
+
+    from app.web.format import gregorian_to_jalali, jalali_to_gregorian, parse_jalali_date
+
+    day = dt.date(2020, 1, 1)
+    while day < dt.date(2032, 1, 1):
+        jy, jm, jd = gregorian_to_jalali(day.year, day.month, day.day)
+        assert jalali_to_gregorian(jy, jm, jd) == day, f"{day} -> {jy}/{jm}/{jd} -> back"
+        day += dt.timedelta(days=1)
+
+    assert parse_jalali_date("۱۴۰۵/۱۰/۱۰") == parse_jalali_date("1405/10/10")
+    for bad in ("", "nonsense", "1405/13/01", "1405/10"):
+        try:
+            parse_jalali_date(bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"{bad!r} was accepted")

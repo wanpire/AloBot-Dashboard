@@ -42,9 +42,19 @@
       <span class="hint">هیچ‌کدام یا همه = برای همهٔ سرویس‌ها.</span>
     </label>
     <label><input type="checkbox" name="is_public" checked> عمومی (قیمت با تخفیف به همه نشان داده می‌شود)</label>
+    {% if discount_bounds %}
+    <div class="filters">
+      <label>مهلت استفاده (شمسی، اختیاری) <input type="text" name="expires_at" dir="ltr" placeholder="۱۴۰۵/۱۰/۱۰" inputmode="numeric">
+        <span class="hint">تا پایان همان روز به وقت تهران معتبر است.</span></label>
+      <label>سقف برای هر مشتری (اختیاری) <input type="text" name="per_user_limit" inputmode="numeric" placeholder="مثلاً ۱">
+        <span class="hint">خالی یعنی بدون سقف؛ شمارش از روی سابقهٔ استفاده است، نه یک شمارنده.</span></label>
+    </div>
+    {% endif %}
     <button class="btn btn--primary" type="submit">ساختن</button>
   </form>
-  <p class="hint">تاریخ انقضا و سقف به‌ازای هر مشتری هنوز در اسکیمای آلوبات نیستند؛ مهاجرتش برای فاز یکپارچه‌سازی در <span dir="ltr">docs/alobot-migrations/</span> نوشته شده است.</p>
+  {% if not discount_bounds %}
+  <p class="hint">تاریخ انقضا و سقف به‌ازای هر مشتری هنوز در اسکیمای آلوبات نیستند؛ مهاجرتش در <span dir="ltr">docs/alobot-migrations/</span> نوشته شده و تا اجرا نشود این دو فیلد نمایش داده نمی‌شوند.</p>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}
