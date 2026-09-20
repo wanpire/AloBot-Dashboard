@@ -221,7 +221,7 @@ async def seed_alobot_copy(write_url: str, *, customers: int = 40, seed: int = 1
                 "(2,'پرایم - اندروید','prime',NULL,1,'BQAC-ovpn-2','ovpn',NULL,true,:at),"
                 "(3,'آلمان','fixed',1,NULL,NULL,NULL,'client\\nremote de.example.com 1194',true,:at)"), {"at": now})
             config = {
-                "card_number": "6037991234567890", "card_holder": "آلو", "support_username": "alo_support",
+                "card_number": "6037991234567893", "card_holder": "آلو", "support_username": "alo_support",
                 "auto_approve_enabled": "true", "auto_approve_delay_minutes": "3", "reminder_enabled": "true",
                 "reminder_bot_mention": "true", "mandatory_channel_enabled": "false", "mandatory_channel_id": "",
                 "trial_limit_enabled": "true", "group_chat_id": "-1001234567890",

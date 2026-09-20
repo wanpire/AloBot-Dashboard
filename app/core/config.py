@@ -66,6 +66,11 @@ class Settings(BaseSettings):
     ingest_device_rate_per_minute: int = 600
     ingest_ip_rate_per_minute: int = 120
 
+    # Telegram bot token used ONLY to send (the outbox). Blank disables sending
+    # with a boot warning. A THROWAWAY test bot until the integration phase;
+    # AloBot's production token only ever lands here in Phase 7.
+    telegram_bot_token: str = ""
+
     # The in-process sweep loop (outbox, prunes, later the matcher). Off in
     # tests, which drive sweeps directly. /health reports the loop stale
     # when it is expected and the heartbeat is older than 90 s.

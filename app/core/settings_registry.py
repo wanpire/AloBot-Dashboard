@@ -53,6 +53,14 @@ REGISTRY: tuple[SettingSpec, ...] = (
         max=365,
     ),
     SettingSpec(
+        "notify",
+        "customers_enabled",
+        "ارسال پیام به مشتریان",
+        "تا فاز یکپارچه‌سازی خاموش می‌ماند: ربات آلوبات خودش به مشتری خبر می‌دهد. روشن که شود، این داشبورد نتیجهٔ تایید بانکی را از طریق توکن ربات به مشتری می‌فرستد.",
+        "bool",
+        default=False,
+    ),
+    SettingSpec(
         "alerts",
         "operator_chat_id",
         "چت هشدارهای سیستم",

@@ -327,4 +327,40 @@ after the first deployment, and each bank's format lands either as a parser
 in `app/sms/parsers.py` or as an operator pattern. Until then the generic
 parser and the pattern editor are the coverage.
 
-Next: Phase 4 in `docs/PLAN.md` - claims, the matcher, the review queue.
+Phase 4 (claims, matcher, review queue, notifications) - done:
+
+- Migration `0003`: `payment_claims` (one per AloBot payment id; THIS
+  project's decision in `status`, AloBot's own in `alobot_status`) and
+  `reconciliation_matches` with the two partial unique indexes that make
+  "one credit settles one claim, once" a database fact (in the invariants).
+- `app/services/matcher.py` is pure and is the only place that decides:
+  isolated 1↔1, same account, same amount to the Rial, ±5 min (24 h for a
+  continuity claim), WAIT for 10 min before saying "no transaction", never
+  auto-reject, time distance is never a tiebreaker.
+- Sweeps: `claims.mirror` (AloBot's pending card payments → claims, target
+  card from AloBot's `app_config.card_number` → our `payment_cards` → account),
+  `claims.settle` (match row + conditional claim UPDATE in one transaction;
+  the race loser rolls back), `outbox.flush` (Telegram sendMessage with
+  backoff, 429 honoured, 403 = DEAD at once, batch cap via `AS MATERIALIZED`).
+- `app/services/review.py`: approve with a chosen credit (CONFIRMED match),
+  verify without one (needs a note), reject, fake, park, message a template,
+  reopen (frees the credit); each a conditional transition. Queues are SQL
+  conditions in one place (`TAB_CONDITIONS`), the bell counts «در انتظار
+  بررسی», the sidebar shows it.
+- Continuity mode: one settings row with an expiry the read enforces,
+  5 min - 6 h, reason required, ADMIN only, banner on every page; claims
+  mirrored while it is on are FULFILLED_UNRECONCILED.
+- Financial stats: automation rate, average «پرداخت کردم»→credit seconds,
+  credits per account, unmatched credits, declined income.
+- Customer-facing sends are gated by `notify/customers_enabled` (default off)
+  because AloBot still tells the customer itself until Phase 7; operator
+  alerts go to `alerts/operator_chat_id`, rate-limited by a UNIQUE key per
+  event per Tehran hour. The bot token is a throwaway until Phase 7.
+
+Two deliberate deviations from the plan: the receipt reminder is not built,
+because AloBot creates the payment row only when the receipt photo arrives, so
+"paid but no receipt" cannot occur; and the receipt image itself is shown in
+Phase 7, since only AloBot's bot token can fetch that file.
+
+Next: Phase 5 in `docs/PLAN.md` - write screens on AloBot's tables, against
+the copy.

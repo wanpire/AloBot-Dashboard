@@ -114,7 +114,7 @@ async def test_bot_settings_page_is_admin_only_and_labels_alobot_keys(seeded):
     admin = await logged_in("ADMIN")
     async with admin:
         r = await admin.get("/botsettings")
-    assert r.status_code == 200 and "تایید خودکار" in r.text and "6037991234567890" in r.text
+    assert r.status_code == 200 and "تایید خودکار" in r.text and "6037991234567893" in r.text
 
 
 async def test_write_screens_carry_the_read_only_banner_until_integration(seeded):

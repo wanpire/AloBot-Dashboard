@@ -16,7 +16,7 @@
     <div class="nav-group">
       <div class="nav-group__label">{{ label }}</div>
       {% for item in items %}
-      <a href="/{{ item.id }}" class="nav-item{% if item.id == page_id %} is-active{% endif %}">{{ item.label }}</a>
+      <a href="/{{ item.id }}" class="nav-item{% if item.id == page_id %} is-active{% endif %}">{{ item.label }}{% if badges.get(item.id) %} <span class="badge badge--count">{{ badges[item.id] | fa_number }}</span>{% endif %}</a>
       {% endfor %}
     </div>
     {% endfor %}
@@ -30,6 +30,7 @@
   <header class="topbar">
     <div class="crumb">{% if page_id %}{{ page_label(page_id) }}{% else %}{% block heading %}{% endblock %}{% endif %}</div>
     <div class="who">
+      <a href="/payments?tab=review" class="bell" title="پرداخت‌های در انتظار بررسی">🔔{% if badges.get("payments") %} <span class="badge badge--count">{{ badges["payments"] | fa_number }}</span>{% endif %}</a>
       <span>{{ operator.display_name }}</span>
       <span class="badge">{{ operator.role }}</span>
       <a href="/password" class="link">تغییر رمز</a>
@@ -37,6 +38,7 @@
     </div>
   </header>
   <main class="content">
+    {% if continuity %}<div class="flash flash--warn">⚠️ <b>حالت تداوم فعال است</b> تا {{ continuity.until | jalali_dt }} — {{ continuity.reason }} (توسط {{ continuity.by }}). پرداخت‌های تازه بدون مدرک بانکی به صف «حالت تداوم» می‌روند.</div>{% endif %}
     {% if notice %}<div class="flash flash--ok">{{ notice }}</div>{% endif %}
     {% if error %}<div class="flash flash--err">{{ error }}</div>{% endif %}
     {% block content %}{% endblock %}

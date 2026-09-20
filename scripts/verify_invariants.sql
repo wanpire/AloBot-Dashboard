@@ -123,6 +123,33 @@ BEGIN
   EXCEPTION WHEN check_violation THEN
     RAISE NOTICE 'PASS payment card numbers are sixteen digits';
   END;
+
+  -- 12. one bank credit settles at most one claim; one claim is settled at most once
+  INSERT INTO payment_claims (id, alobot_payment_id, telegram_id, purpose, expected_amount_irr, ibsng_username, paid_clicked_at)
+    VALUES (-1, -1, -1, 'purchase', 1, 'inv', now()), (-2, -2, -1, 'purchase', 1, 'inv', now());
+  INSERT INTO sms_events (id, device_id, sender, body, body_hash, dedupe_key, sms_timestamp, classification)
+    VALUES (-2, -1, 'inv', 'y', 'h2', '__inv-dk2', now(), 'BANK_TRANSACTION');
+  INSERT INTO transaction_candidates (id, sms_event_id, direction, amount_irr, confidence, parser_id, parser_version)
+    VALUES (-2, -2, 'CREDIT', 1, 1, 'inv', '1');
+  INSERT INTO reconciliation_matches (claim_id, transaction_id, status, reason) VALUES (-1, -2, 'AUTO_VERIFIED', 'inv');
+  BEGIN
+    INSERT INTO reconciliation_matches (claim_id, transaction_id, status, reason) VALUES (-2, -2, 'CONFIRMED', 'inv');
+    RAISE EXCEPTION 'FAIL one credit settled two claims';
+  EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'PASS one credit settles at most one claim';
+  END;
+  INSERT INTO transaction_candidates (id, sms_event_id, direction, amount_irr, confidence, parser_id, parser_version)
+    SELECT -3, -1, 'CREDIT', 1, 1, 'inv', '1' WHERE NOT EXISTS (SELECT 1 FROM transaction_candidates WHERE sms_event_id = -1);
+  BEGIN
+    INSERT INTO reconciliation_matches (claim_id, transaction_id, status, reason)
+      SELECT -1, id, 'CONFIRMED', 'inv' FROM transaction_candidates WHERE sms_event_id = -1;
+    RAISE EXCEPTION 'FAIL one claim was settled twice';
+  EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'PASS one claim is settled at most once';
+  END;
+  -- a SUGGESTED row is never exclusive
+  INSERT INTO reconciliation_matches (claim_id, transaction_id, status, reason) VALUES (-2, -2, 'SUGGESTED', 'inv');
+  RAISE NOTICE 'PASS suggestions do not block settling';
 END $$;
 
 ROLLBACK;

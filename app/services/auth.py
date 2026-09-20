@@ -239,7 +239,11 @@ async def change_password(
     now: dt.datetime | None = None,
 ) -> bool:
     now = _now(now)
-    await session.refresh(operator)
+    # The caller's operator may be detached from this session (request
+    # scope); decide on a fresh row, not on whatever the object remembers.
+    operator = await session.get(Operator, operator.id)
+    if operator is None:
+        return False
     if operator.locked_until is not None and operator.locked_until > now:
         return False
     if not verify_password(current, operator.password_hash):

@@ -118,6 +118,34 @@ async def _sessions_prune(session: AsyncSession) -> int:
     return result.rowcount
 
 
+async def _claims_mirror(session: AsyncSession) -> dict:
+    from app.services.claims import mirror_claims
+
+    return await mirror_claims(session, now=__import__("datetime").datetime.now(__import__("datetime").timezone.utc))
+
+
+async def _claims_settle(session: AsyncSession) -> dict:
+    from app.services.settle import settle
+
+    return await settle(session)
+
+
+async def _outbox_flush(session: AsyncSession) -> dict:
+    from app.core.config import get_settings
+    from app.services.alerts import alert
+    from app.services.outbox import flush
+    from app.services.telegram import TelegramApi
+
+    token = get_settings().telegram_bot_token
+    result = await flush(session, TelegramApi(token) if token else None)
+    if result.get("dead"):
+        await alert(session, "notify.dead", f"{result['dead']} پیام تلگرام برای همیشه ارسال نشد؛ صفحهٔ رویدادها را ببینید.")
+    return result
+
+
+registry.register("claims.mirror", _claims_mirror)
+registry.register("claims.settle", _claims_settle)
+registry.register("outbox.flush", _outbox_flush)
 registry.register("events.flush", _events_flush)
 registry.register("events.prune", _events_prune)
 registry.register("sessions.prune", _sessions_prune)

@@ -4,6 +4,7 @@
 from app.models.app_event import AppEvent
 from app.models.audit_log import AuditLog
 from app.models.bot_notification import BotNotification
+from app.models.claims import PaymentClaim, ReconciliationMatch
 from app.models.ingest import (
     BankCardPrefix,
     BankSmsPattern,
@@ -20,6 +21,7 @@ from app.models.setting import Setting
 
 __all__ = [
     "AppEvent", "AuditLog", "BankCardPrefix", "BankSmsPattern", "BotNotification", "Device", "DeviceCredential",
-    "FinancialAccount", "FinancialAccountIdentifier", "Operator", "OperatorSession", "PaymentCard", "Setting",
+    "FinancialAccount", "FinancialAccountIdentifier", "Operator", "OperatorSession", "PaymentCard", "PaymentClaim",
+    "ReconciliationMatch", "Setting",
     "SmsEvent", "TransactionCandidate",
 ]

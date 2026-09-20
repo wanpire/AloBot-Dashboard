@@ -31,6 +31,7 @@ from app.web.routes import alobot_pages
 from app.web.routes import auth as auth_routes
 from app.web.routes import events as event_routes
 from app.web.routes import pages as page_routes
+from app.web.routes import payments as payment_routes
 from app.web.routes import pipeline as pipeline_routes
 from app.web.routes import settings as settings_routes
 from app.web.templating import render
@@ -45,6 +46,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info("boot", env=settings.env_name.value, version=settings.app_version)
     if alobot_engine is None:
         log.warning("boot.alobot_db_unconfigured", detail="AloBot-backed pages are disabled")
+    if not settings.telegram_bot_token:
+        log.warning("boot.no_bot_token", detail="outbox sending is OFF")
     if not settings.trusted_proxy_ip_header:
         log.warning("boot.no_trusted_proxy_header", detail="per-IP login rate limit is OFF")
     install_event_sink()
@@ -73,6 +76,7 @@ app.include_router(event_routes.router)
 app.include_router(alobot_pages.router)
 app.include_router(ingest_api.router)
 app.include_router(pipeline_routes.router)
+app.include_router(payment_routes.router)
 app.include_router(page_routes.router)  # placeholders last: specific pages above win
 
 

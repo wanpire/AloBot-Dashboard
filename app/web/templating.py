@@ -33,5 +33,7 @@ def render(request: Request, name: str, status_code: int = 200, **context: Any):
         "app_version": settings.app_version,
         "env_name": settings.env_name.value,
         "page_label": page_label,
+        "badges": getattr(request.state, "badges", {}),
+        "continuity": getattr(request.state, "continuity", None),
     }
     return templates.TemplateResponse(request, name, {**base, **context}, status_code=status_code)

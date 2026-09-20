@@ -179,7 +179,7 @@ against the real container.
 
 ---
 
-## Phase 4 — Claims, matching, review queue, notifications
+## Phase 4 — Claims, matching, review queue, notifications ✅
 
 Goal: a pending AloBot card payment becomes a claim, the matcher decides, an
 operator reviews what it could not decide, the customer hears about it.
@@ -232,6 +232,10 @@ Exit criteria: end-to-end demo on the copy database — seed a pending payment,
 post a matching SMS, watch the claim auto-verify; post two same-amount SMS and
 watch both go to review; a test asserts the invariants suite passes after every
 scenario.
+
+**Done 2026-09-20** — 242 tests. Deviations: no receipt reminder (AloBot's
+payment row is created by the receipt upload, so the case cannot occur) and
+the receipt image waits for Phase 7 (only AloBot's token can fetch it).
 
 ---
 

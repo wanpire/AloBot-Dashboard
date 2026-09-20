@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">ثبت شد.</div>{% elif notice == "continuity_on" %}<div class="flash flash--ok">حالت تداوم فعال شد.</div>{% elif notice == "continuity_off" %}<div class="flash flash--ok">حالت تداوم خاموش شد.</div>{% endif %}
+<div class="card">
+  <div class="tabs">
+    {% for id, name in tabs.items() %}<a class="btn{% if id == tab %} btn--primary{% endif %}" href="/payments?tab={{ id }}">{{ name }} <span class="hint">{{ counts.get(id, 0) | fa_number }}</span></a>{% endfor %}
+  </div>
+  <form method="get" action="/payments" class="filters" style="margin-top:10px">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    {% if tab == "auto" %}<label>نوع <select name="purpose"><option value="">همه</option>{% for k, v in purposes.items() %}<option value="{{ k }}" {% if purpose == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>{% endif %}
+    <label>جست‌وجو <input type="text" name="q" value="{{ q }}" placeholder="شمارهٔ فاکتور، شناسهٔ تلگرام، نام کاربری، شمارهٔ پیگیری"></label>
+    <button class="btn" type="submit">اعمال</button>
+  </form>
+</div>
+{% if tab == "continuity" and operator.role == "ADMIN" %}
+<div class="card" style="margin-top:16px">
+  <h2>حالت تداوم</h2>
+  <p class="hint">وقتی گوشی رله یا پارسر از کار افتاده و فروش نباید بخوابد. پرداخت‌هایی که در این حالت باز می‌شوند بدون مدرک بانکی به این صف می‌روند و تا ۲۴ ساعت با پیامک دیررسیده تطبیق داده می‌شوند. هیچ پرداخت قبلی را لمس نمی‌کند و خودش خاموش می‌شود.</p>
+  {% if continuity_state %}
+  <form method="post" action="/payments/continuity/off"><button class="btn btn--primary" type="submit">خاموش کن (فعال تا {{ continuity_state.until | jalali_dt }})</button></form>
+  {% else %}
+  <form method="post" action="/payments/continuity" class="filters"><label>مدت (دقیقه، ۵ تا ۳۶۰) <input type="number" name="minutes" value="60" min="5" max="360"></label><label>دلیل <input type="text" name="reason" required></label><button class="btn btn--primary" type="submit">فعال کن</button></form>
+  {% endif %}
+</div>
+{% endif %}
+<div class="card" style="margin-top:16px">
+  <table>
+    <thead><tr><th>فاکتور</th><th>مشتری</th><th>نوع</th><th>مبلغ</th><th>«پرداخت کردم»</th><th>حساب مقصد</th><th>وضعیت</th><th>رسید</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}{% set c = r.claim %}
+      <tr class="payment-row">
+        <td dir="ltr">{{ c.invoice_code or c.alobot_payment_id }}</td>
+        <td><a class="link" href="/customers/{{ c.telegram_id }}">{{ c.telegram_id | string | fa }}</a><br><span class="hint" dir="ltr">{{ c.ibsng_username }}</span></td>
+        <td>{{ label(purposes, c.purpose) }}</td>
+        <td>{{ c.expected_amount_irr | toman }}</td>
+        <td>{{ c.paid_clicked_at | jalali_dt }}</td>
+        <td>{% if r.account %}{{ r.account.display_name }}{% else %}<span class="badge">وصل نیست</span>{% endif %}</td>
+        <td>{{ tabs.get({"PENDING": "waiting", "AUTO_VERIFIED": "auto", "MANUAL_VERIFIED": "manual", "REJECTED": "rejected", "FAKE": "rejected", "FULFILLED_UNRECONCILED": "continuity"}[c.status]) }}
+          {% if c.suspect_reason %}<br><span class="hint">{{ reasons.get(c.suspect_reason, c.suspect_reason) }} · <span dir="ltr">{{ c.suspect_reason }}</span></span>{% endif %}
+          {% if c.alobot_status != "pending" %}<br><span class="hint">آلوبات: {{ c.alobot_status }}</span>{% endif %}
+          {% if c.messaged_template %}<br><span class="hint">پیام: {{ templates[c.messaged_template][0] }}</span>{% endif %}
+        </td>
+        <td>{{ "دارد" if c.receipt_file_id else "ندارد" }}<br><span class="hint">تصویر در فاز یکپارچه‌سازی</span></td>
+        <td>
+          <details><summary>بررسی</summary>
+            {% if r.matches %}
+            <table class="cands"><thead><tr><th>واریز</th><th>مبلغ</th><th>زمان</th><th>پیگیری</th><th>وضعیت</th><th></th></tr></thead><tbody>
+            {% for m, t in r.matches %}
+              <tr><td>{{ t.id | fa_number }}</td><td>{{ t.amount_irr | toman }}</td><td>{{ t.bank_timestamp | jalali_dt }}</td><td dir="ltr">{{ t.reference or "—" }}</td><td dir="ltr">{{ m.status }}</td>
+                <td>{% if operator.role in ("ADMIN", "REVIEWER") and c.status in ("PENDING", "FULFILLED_UNRECONCILED") and m.status == "SUGGESTED" %}<form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="inline"><input type="hidden" name="transaction_id" value="{{ t.id }}"><button class="btn btn--primary" type="submit">تایید با این واریز</button></form>{% endif %}</td></tr>
+            {% endfor %}</tbody></table>
+            {% else %}<p class="hint">هیچ واریز نامزدی ندارد.</p>{% endif %}
+            {% if operator.role in ("ADMIN", "REVIEWER") %}
+              {% if c.status in ("PENDING", "FULFILLED_UNRECONCILED") %}
+              <form method="post" action="/payments/{{ c.id }}/verify-manual?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="دلیل تایید بدون تراکنش" required><button class="btn" type="submit">تایید دستی</button></form>
+              <form method="post" action="/payments/{{ c.id }}/reject?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="دلیل رد"><button class="btn" type="submit">رد</button></form>
+              <form method="post" action="/payments/{{ c.id }}/fake?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="چرا جعلی"><button class="btn" type="submit">جعلی</button></form>
+              {% if c.parked_at %}<form method="post" action="/payments/{{ c.id }}/unpark?tab={{ tab }}" class="inline"><button class="btn" type="submit">برگردان به صف</button></form>{% else %}<form method="post" action="/payments/{{ c.id }}/park?tab={{ tab }}" class="inline"><button class="btn" type="submit">کنار بگذار</button></form>{% endif %}
+              <form method="post" action="/payments/{{ c.id }}/message?tab={{ tab }}" class="inline"><select name="template">{% for k, (name, body) in templates.items() %}<option value="{{ k }}" title="{{ body }}">{{ name }}</option>{% endfor %}</select><button class="btn" type="submit">پیام به مشتری</button></form>
+              {% else %}
+              <form method="post" action="/payments/{{ c.id }}/reopen?tab={{ tab }}" class="inline"><button class="btn" type="submit">بازگشایی (تصمیم را برمی‌گرداند)</button></form>
+              {% endif %}
+            {% endif %}
+            {% if c.note %}<p class="hint">یادداشت: {{ c.note }}</p>{% endif %}
+            {% if c.verified_by %}<p class="hint">تایید: {{ c.verified_by }} · {{ c.verified_at | jalali_dt }}</p>{% endif %}
+          </details>
+        </td>
+      </tr>
+    {% else %}<tr><td colspan="9" class="hint">این صف خالی است.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% set query_string = "tab=" ~ tab ~ "&q=" ~ q ~ "&purpose=" ~ (purpose or "") ~ "&" %}
+  {% include "_pager.html" %}
+</div>
+{% endblock %}

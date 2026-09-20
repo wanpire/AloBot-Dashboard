@@ -31,6 +31,14 @@ async def current_operator(request: Request, db: AsyncSession = Depends(get_db))
         raise Unauthenticated()
     request.state.operator = operator
     request.state.session_token = token
+    from app.services import continuity, review
+
+    now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+    request.state.badges = {"payments": await review.review_count(db)}
+    request.state.continuity = await continuity.state(db, now)
+    # Detached on purpose: a service that rolls back the request session must
+    # not expire the operator the templates still read (role, name, email).
+    db.expunge(operator)
     return operator
 
 

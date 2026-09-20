@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  {% for d, name in [(1, "امروز"), (7, "۷ روز"), (30, "۳۰ روز"), (90, "۹۰ روز")] %}<a class="btn{% if days == d %} btn--primary{% endif %}" href="/finance?days={{ d }}">{{ name }}</a>{% endfor %}
+  <p class="hint">از {{ since | jalali_dt }}</p>
+</div>
+<div class="grid grid--cards">
+  <div class="card"><div class="stat__label">نرخ تایید خودکار</div><div class="stat__value">{% if automation_rate is not none %}{{ automation_rate | fa_number }}٪{% else %}—{% endif %}</div><div class="hint">{{ auto | fa_number }} خودکار · {{ manual | fa_number }} دستی · {{ rejected | fa_number }} رد/جعلی</div></div>
+  <div class="card"><div class="stat__label">میانگین فاصلهٔ «پرداخت کردم» تا واریز بانک</div><div class="stat__value">{% if avg_delta_seconds is not none %}{{ avg_delta_seconds | fa_number }} ثانیه{% else %}—{% endif %}</div></div>
+  <div class="card"><div class="stat__label">واریزهای بی‌صاحب</div><div class="stat__value">{{ unmatched[0] | fa_number }}</div><div class="hint">{{ unmatched[1] | toman }} — واریز قابل تطبیقی که هیچ پرداختی آن را نگرفته</div></div>
+  <div class="card"><div class="stat__label">درآمد نیست</div><div class="stat__value">{{ declined[0] | fa_number }}</div><div class="hint">{{ declined[1] | toman }}</div></div>
+</div>
+<div class="card"><h2>واریز به هر حساب</h2>
+  <table><thead><tr><th>حساب</th><th>تعداد</th><th>مبلغ</th></tr></thead><tbody>{% for name, n, total in by_account %}<tr><td>{{ name }}</td><td>{{ n | fa_number }}</td><td>{{ total | toman }}</td></tr>{% else %}<tr><td colspan="3" class="hint">واریزی در این بازه نیست.</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}

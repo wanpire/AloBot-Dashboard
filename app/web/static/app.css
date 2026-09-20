@@ -38,3 +38,5 @@ h2{font-size:18px;margin:16px 0 8px}h3{font-size:15px;margin:0 0 8px}
 .card--token{border-color:#f59e0b;background:#fffbeb}.card--token pre{background:#fff;padding:10px;border-radius:6px;overflow-x:auto}
 details>summary{cursor:pointer;color:var(--accent)}details form{margin:6px 0}
 textarea{font:inherit}
+.badge--count{background:var(--err);color:#fff}.bell{text-decoration:none}.flash--warn{background:#fef3c7;color:#92400e}
+.payment-row td{vertical-align:top}.cands td{padding:4px 8px}
