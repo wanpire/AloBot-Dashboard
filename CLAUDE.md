@@ -446,6 +446,30 @@ Deferred by the owner, not forgotten:
   synthetic; the generic parser and the operator pattern editor are the
   coverage until real messages arrive.
 
-Next: Phase 7 is the only work left, and it is the only work that touches
-AloBot. Every task in it needs its own go-ahead, its own run of AloBot's
-test suite, and no restart of the live bot without that being flagged.
+Phase 7, the four approved items - built, against the copy as always:
+
+- **Blocking a customer** needs no AloBot change: its middleware reads
+  `bot_users.is_blocked` before every handler. The grant is column-level, so
+  this project can flip that flag and still cannot read or alter anything
+  else about a customer. Admins and resellers are refused with the reason,
+  because AloBot exempts them.
+- **The receipt image** is fetched with AloBot's own token when an operator
+  opens it and never stored. Writing the "the token must not reach the log"
+  test found that it did: httpx logs request URLs and the token lives inside
+  one. Those loggers are silenced and the formatter scrubs the shape anyway.
+- **The reseller top-up** is written in one statement, recorded in this
+  project's own ledger, and read back; a top-up that did not land is marked
+  unverified and alerts, rather than reporting success.
+- **Discount expiry and per-customer cap**: the form offers both fields only
+  when AloBot's schema actually has the columns, asked of the reflected
+  table rather than a flag.
+
+Two AloBot branches wait for the owner's review, with AloBot's `main`
+untouched and its suite green on both: `phase7/reseller-balance-lock` (the
+purchase deduction was a read-modify-write with no row lock) and
+`phase7/discount-expiry-and-per-user-limit` (two nullable columns whose
+checks pass on NULL, so existing codes behave identically).
+
+Next: the owner reviews those two diffs; then the manual purchase, renewal
+and trial walkthrough, which needs a running bot and so belongs with the
+deferred deployment.

@@ -368,6 +368,31 @@ Every task here changes AloBot's repo, deployment, database or token. Rules for
 each: explicit go-ahead before code, AloBot's own `make test` run, no live
 restart without flagging it, and a rollback path written down first.
 
+### The four items approved and built (see `docs/phase7-design.md`)
+
+The owner approved four: blocking a customer, messaging one, topping up a
+reseller, and showing the receipt image. Three of them turned out to need **no
+change to AloBot's code at all**, which is why they are done and the plan
+below is smaller than it looks.
+
+| Item | AloBot change | State |
+|---|---|---|
+| Block / unblock a customer | none | done; one column-level grant on `bot_users` |
+| Receipt image in the review queue | none | done; fetched with AloBot's token, never stored |
+| Reseller top-up | none for the dashboard half | done; the row-lock fix is a branch awaiting review |
+| Discount expiry + per-customer cap | migration, service, six call sites | branch awaiting review; dashboard half done |
+
+Two branches sit in AloBot's repo, unmerged, `main` untouched:
+
+- `phase7/reseller-balance-lock` — the row lock in the purchase deduction,
+  plus two tests. AloBot's suite: 106 passed against a 104 baseline.
+- `phase7/discount-expiry-and-per-user-limit` — two nullable columns, two
+  predicates, six call sites, six tests. AloBot's suite: 110 passed.
+
+Still outstanding for these four: the owner's look at both diffs, the manual
+purchase / renewal / trial walkthrough (needs a running bot and a Telegram
+account, so it belongs with the deferred deployment), and then merging.
+
 1. **Read-only production link:** create the `dashboard_ro` role on AloBot's
    Postgres (SELECT on the listed tables only); join this project's container
    to AloBot's compose network as an *external* network (AloBot's compose file
