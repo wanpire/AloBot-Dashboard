@@ -1,99 +1,198 @@
-{% extends "base.html" %}
+{#
+  The review queue: the first screen on the Tabler shell, and the reference
+  for the rest. See docs/ui-guide.md.
+
+  Nothing about what this page DOES changed. Same route, same query, same
+  ordering, same pagination arithmetic, same form actions, same field names,
+  same role guards, same words. What changed is that it is assembled from
+  _ui.html instead of writing its own markup, and that it is usable on a
+  phone.
+#}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
+
+{% set notice_text = {"saved": "ثبت شد.", "continuity_on": "حالت تداوم فعال شد.", "continuity_off": "حالت تداوم خاموش شد."}.get(notice) %}
+
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">ثبت شد.</div>{% elif notice == "continuity_on" %}<div class="flash flash--ok">حالت تداوم فعال شد.</div>{% elif notice == "continuity_off" %}<div class="flash flash--ok">حالت تداوم خاموش شد.</div>{% endif %}
-<div class="card">
-  <div class="tabs">
-    {% for id, name in tabs.items() %}<a class="btn{% if id == tab %} btn--primary{% endif %}" href="/payments?tab={{ id }}">{{ name }} <span class="hint">{{ counts.get(id, 0) | fa_number }}</span></a>{% endfor %}
+
+{# ── Queues, and the filter that narrows one ───────────────────────────── #}
+{% call ui.card() %}
+  <div class="d-flex flex-wrap gap-2" data-testid="queue-tabs">
+    {% for id, name in tabs.items() %}
+      {{ ui.btn(name ~ " " ~ (counts.get(id, 0) | fa_number), tone="primary" if id == tab else "", href="/payments?tab=" ~ id, data_testid="queue-tab") }}
+    {% endfor %}
   </div>
-  <form method="get" action="/payments" class="filters" style="margin-top:10px">
+
+  <form method="get" action="/payments" class="row g-2 align-items-end mt-2" data-testid="queue-filters">
     <input type="hidden" name="tab" value="{{ tab }}">
-    {% if tab == "auto" %}<label>نوع <select name="purpose"><option value="">همه</option>{% for k, v in purposes.items() %}<option value="{{ k }}" {% if purpose == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>{% endif %}
-    <label>جست‌وجو <input type="text" name="q" value="{{ q }}" placeholder="شمارهٔ فاکتور، شناسهٔ تلگرام، نام کاربری، شمارهٔ پیگیری"></label>
-    <button class="btn" type="submit">اعمال</button>
+    {% if tab == "auto" %}
+    <div class="col-12 col-md-3">
+      {{ ui.field("purpose", "نوع", value=purpose or "", options=[("", "همه")] + (purposes.items() | list)) }}
+    </div>
+    {% endif %}
+    <div class="col-12 col-md">
+      {{ ui.field("q", "جست‌وجو", value=q, attrs={"placeholder": "شمارهٔ فاکتور، شناسهٔ تلگرام، نام کاربری، شمارهٔ پیگیری"}) }}
+    </div>
+    <div class="col-12 col-md-auto mb-3">
+      {{ ui.btn("اعمال", type="submit") }}
+    </div>
   </form>
-</div>
+{% endcall %}
+
+{# ── Continuity mode: ADMIN only, and only on its own queue ────────────── #}
 {% if tab == "continuity" and operator.role == "ADMIN" %}
-<div class="card" style="margin-top:16px">
-  <h2>حالت تداوم</h2>
-  <p class="hint">وقتی گوشی رله یا پارسر از کار افتاده و فروش نباید بخوابد. پرداخت‌هایی که در این حالت باز می‌شوند بدون مدرک بانکی به این صف می‌روند و تا ۲۴ ساعت با پیامک دیررسیده تطبیق داده می‌شوند. هیچ پرداخت قبلی را لمس نمی‌کند و خودش خاموش می‌شود.</p>
+<div class="mt-3">
+{% call ui.card("حالت تداوم") %}
+  <p class="text-secondary">وقتی گوشی رله یا پارسر از کار افتاده و فروش نباید بخوابد. پرداخت‌هایی که در این حالت باز می‌شوند بدون مدرک بانکی به این صف می‌روند و تا ۲۴ ساعت با پیامک دیررسیده تطبیق داده می‌شوند. هیچ پرداخت قبلی را لمس نمی‌کند و خودش خاموش می‌شود.</p>
   {% if continuity_state %}
-  <form method="post" action="/payments/continuity/off"><button class="btn btn--primary" type="submit">خاموش کن (فعال تا {{ continuity_state.until | jalali_dt }})</button></form>
+  <form method="post" action="/payments/continuity/off">
+    {{ ui.btn("خاموش کن (فعال تا " ~ (continuity_state.until | jalali_dt) ~ ")", tone="primary", type="submit") }}
+  </form>
   {% else %}
-  <form method="post" action="/payments/continuity" class="filters"><label>مدت (دقیقه، ۵ تا ۳۶۰) <input type="number" name="minutes" value="60" min="5" max="360"></label><label>دلیل <input type="text" name="reason" required></label><button class="btn btn--primary" type="submit">فعال کن</button></form>
+  <form method="post" action="/payments/continuity" class="row g-2 align-items-end">
+    <div class="col-12 col-md-4">{{ ui.field("minutes", "مدت (دقیقه، ۵ تا ۳۶۰)", value="60", type="number", attrs={"min": "5", "max": "360"}) }}</div>
+    <div class="col-12 col-md-6">{{ ui.field("reason", "دلیل", required=True) }}</div>
+    <div class="col-12 col-md-auto mb-3">{{ ui.btn("فعال کن", tone="primary", type="submit") }}</div>
+  </form>
   {% endif %}
+{% endcall %}
 </div>
 {% endif %}
-<div class="card" style="margin-top:16px">
-  <table>
-    <thead><tr><th>فاکتور</th><th>مشتری</th><th>نوع</th><th>مبلغ</th><th>«پرداخت کردم»</th><th>حساب مقصد</th><th>وضعیت</th><th>رسید</th><th></th></tr></thead>
-    <tbody>
+
+{# ── The queue itself ──────────────────────────────────────────────────── #}
+<div class="mt-3">
+{% call ui.card() %}
+  {% if rows %}
+  {% call ui.table(["فاکتور", "مشتری", "نوع", "مبلغ", "«پرداخت کردم»", "حساب مقصد", "وضعیت", "رسید", ""]) %}
     {% for r in rows %}{% set c = r.claim %}
-      <tr class="payment-row">
-        <td dir="ltr">{{ c.invoice_code or c.alobot_payment_id }}</td>
-        <td><a class="link" href="/customers/{{ c.telegram_id }}">{{ c.telegram_id | string | fa }}</a><br><span class="hint" dir="ltr">{{ c.ibsng_username }}</span></td>
-        <td>{{ label(purposes, c.purpose) }}</td>
-        <td>{{ c.expected_amount_irr | toman }}</td>
-        <td>{{ c.paid_clicked_at | jalali_dt }}</td>
-        <td>{% if r.account %}{{ r.account.display_name }}{% else %}<span class="badge">وصل نیست</span>{% endif %}</td>
-        <td>{{ tabs.get({"PENDING": "waiting", "AUTO_VERIFIED": "auto", "MANUAL_VERIFIED": "manual", "REJECTED": "rejected", "FAKE": "rejected", "FULFILLED_UNRECONCILED": "continuity"}[c.status]) }}
-          {% if c.suspect_reason %}<br><span class="hint">{{ reasons.get(c.suspect_reason, c.suspect_reason) }} · <span dir="ltr">{{ c.suspect_reason }}</span></span>{% endif %}
-          {% if c.alobot_status != "pending" %}<br><span class="hint">آلوبات: {{ c.alobot_status }}</span>{% endif %}
-          {% if c.messaged_template %}<br><span class="hint">پیام: {{ templates[c.messaged_template][0] }}</span>{% endif %}
-        </td>
-        <td>
-          {% if c.receipt_file_id %}
-            {% if receipts_enabled %}
-            <a href="/payments/{{ c.id }}/receipt" target="_blank" rel="noopener" title="اندازهٔ کامل">
-              <img src="/payments/{{ c.id }}/receipt" alt="رسید پرداخت" loading="lazy" class="receipt">
-            </a>
-            {% else %}دارد<br><span class="hint">برای نمایش تصویر ALOBOT_BOT_TOKEN لازم است</span>{% endif %}
-          {% else %}ندارد{% endif %}
-        </td>
-        <td>
-          <details {% if tab == "review" %}open{% endif %}><summary>بررسی</summary>
-            {% if r.matches %}
-            <table class="cands"><thead><tr><th>واریز</th><th>مبلغ</th><th>زمان</th><th>پیگیری</th><th>وضعیت</th><th></th></tr></thead><tbody>
+    {% call ui.row(class_="payment-row") %}
+      {% call ui.cell("فاکتور") %}<span dir="ltr">{{ c.invoice_code or c.alobot_payment_id }}</span>{% endcall %}
+      {% call ui.cell("مشتری") %}
+        <a class="link-primary" href="/customers/{{ c.telegram_id }}">{{ c.telegram_id | string | fa }}</a><br>
+        <span class="text-secondary" dir="ltr">{{ c.ibsng_username }}</span>
+      {% endcall %}
+      {% call ui.cell("نوع") %}{{ label(purposes, c.purpose) }}{% endcall %}
+      {% call ui.cell("مبلغ") %}{{ c.expected_amount_irr | toman }}{% endcall %}
+      {% call ui.cell("«پرداخت کردم»") %}{{ c.paid_clicked_at | jalali_dt }}{% endcall %}
+      {% call ui.cell("حساب مقصد") %}
+        {% if r.account %}{{ r.account.display_name }}{% else %}{{ ui.state_badge("", label="وصل نیست") }}{% endif %}
+      {% endcall %}
+      {% call ui.cell("وضعیت") %}
+        {# The colour comes from the central map; the WORD is the one this page
+           has always shown, which is the queue's own name. #}
+        {{ ui.state_badge(c.status, family="claim", label=tabs.get({"PENDING": "waiting", "AUTO_VERIFIED": "auto", "MANUAL_VERIFIED": "manual", "REJECTED": "rejected", "FAKE": "rejected", "FULFILLED_UNRECONCILED": "continuity"}[c.status])) }}
+        {% if c.suspect_reason %}<br><span class="text-secondary">{{ reasons.get(c.suspect_reason, c.suspect_reason) }} · <span dir="ltr">{{ c.suspect_reason }}</span></span>{% endif %}
+        {% if c.alobot_status != "pending" %}<br><span class="text-secondary">آلوبات: {{ c.alobot_status }}</span>{% endif %}
+        {% if c.messaged_template %}<br><span class="text-secondary">پیام: {{ templates[c.messaged_template][0] }}</span>{% endif %}
+      {% endcall %}
+      {% call ui.cell("رسید") %}
+        {% if c.receipt_file_id %}
+          {% if receipts_enabled %}
+          <a href="/payments/{{ c.id }}/receipt" target="_blank" rel="noopener" title="اندازهٔ کامل">
+            <img src="/payments/{{ c.id }}/receipt" alt="رسید پرداخت" loading="lazy" class="ui-receipt">
+          </a>
+          {% else %}دارد<br><span class="text-secondary">برای نمایش تصویر ALOBOT_BOT_TOKEN لازم است</span>{% endif %}
+        {% else %}ندارد{% endif %}
+      {% endcall %}
+      {% call ui.actions_cell() %}
+        <details class="w-100" {% if tab == "review" %}open{% endif %} data-testid="claim-review">
+          <summary class="text-primary">بررسی</summary>
+
+          {% if r.matches %}
+          {% call ui.table(["واریز", "مبلغ", "زمان", "پیگیری", "وضعیت", ""]) %}
             {% for m, t in r.matches %}
-              <tr><td>{{ t.id | fa_number }}</td><td>{{ t.amount_irr | toman }}</td><td>{{ t.bank_timestamp | jalali_dt }}</td><td dir="ltr">{{ t.reference or "—" }}</td><td dir="ltr">{{ m.status }}</td>
-                <td>{% if t.id in spent_transactions %}<span class="hint">این واریز پیش‌تر خرج پرداخت دیگری شده</span>{% elif operator.role in ("ADMIN", "REVIEWER") and c.status in ("PENDING", "FULFILLED_UNRECONCILED") and m.status == "SUGGESTED" %}<form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="inline"><input type="hidden" name="transaction_id" value="{{ t.id }}"><button class="btn btn--primary" type="submit" data-testid="payment-approve-btn">تایید با این واریز</button></form>{% endif %}</td></tr>
-            {% endfor %}</tbody></table>
-            {% else %}<p class="hint">هیچ واریز نامزدی ندارد.</p>{% endif %}
-            {% if operator.role in ("ADMIN", "REVIEWER") %}
-              {% if c.status in ("PENDING", "FULFILLED_UNRECONCILED") %}
-              {% if r.attachable %}
-              {# The matcher only suggests what fits its rule. These are the
-                 nearby credits nobody has spent, so a payment and its money
-                 can still be joined by hand instead of being verified with
-                 no transaction at all. #}
-              <form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="inline">
-                <label>پیوست واریز دیگر
-                  <select name="transaction_id">
-                    {% for t, delta in r.attachable %}
-                    <option value="{{ t.id }}">{{ t.amount_irr | toman }} · {{ t.bank_timestamp | jalali_dt }} · {{ delta | fa_number }} ثانیه فاصله{% if t.amount_irr != c.expected_amount_irr %} · اختلاف مبلغ{% endif %}</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <button class="btn" type="submit">پیوست و تایید</button>
-              </form>
-              {% endif %}
-              <form method="post" action="/payments/{{ c.id }}/verify-manual?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="دلیل تایید بدون تراکنش" required><button class="btn" type="submit">تایید دستی</button></form>
-              <form method="post" action="/payments/{{ c.id }}/reject?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="دلیل رد"><button class="btn" type="submit">رد</button></form>
-              <form method="post" action="/payments/{{ c.id }}/fake?tab={{ tab }}" class="inline"><input type="text" name="note" placeholder="چرا جعلی"><button class="btn" type="submit">جعلی</button></form>
-              {% if c.parked_at %}<form method="post" action="/payments/{{ c.id }}/unpark?tab={{ tab }}" class="inline"><button class="btn" type="submit">برگردان به صف</button></form>{% else %}<form method="post" action="/payments/{{ c.id }}/park?tab={{ tab }}" class="inline"><button class="btn" type="submit">کنار بگذار</button></form>{% endif %}
-              <form method="post" action="/payments/{{ c.id }}/message?tab={{ tab }}" class="inline"><select name="template">{% for k, (name, body) in templates.items() %}<option value="{{ k }}" title="{{ body }}">{{ name }}</option>{% endfor %}</select><button class="btn" type="submit">پیام به مشتری</button></form>
-              {% else %}
-              <form method="post" action="/payments/{{ c.id }}/reopen?tab={{ tab }}" class="inline"><button class="btn" type="submit">بازگشایی (تصمیم را برمی‌گرداند)</button></form>
-              {% endif %}
+            {% call ui.row() %}
+              {% call ui.cell("واریز") %}{{ t.id | fa_number }}{% endcall %}
+              {% call ui.cell("مبلغ") %}{{ t.amount_irr | toman }}{% endcall %}
+              {% call ui.cell("زمان") %}{{ t.bank_timestamp | jalali_dt }}{% endcall %}
+              {% call ui.cell("پیگیری") %}<span dir="ltr">{{ t.reference or "—" }}</span>{% endcall %}
+              {% call ui.cell("وضعیت") %}{{ ui.state_badge(m.status, family="match", label=m.status, dir="ltr") }}{% endcall %}
+              {% call ui.actions_cell() %}
+                {% if t.id in spent_transactions %}
+                  <span class="text-secondary">این واریز پیش‌تر خرج پرداخت دیگری شده</span>
+                {% elif operator.role in ("ADMIN", "REVIEWER") and c.status in ("PENDING", "FULFILLED_UNRECONCILED") and m.status == "SUGGESTED" %}
+                  <form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="d-inline">
+                    <input type="hidden" name="transaction_id" value="{{ t.id }}">
+                    {{ ui.btn("تایید با این واریز", tone="primary", size="sm", type="submit", data_testid="payment-approve-btn") }}
+                  </form>
+                {% endif %}
+              {% endcall %}
+            {% endcall %}
+            {% endfor %}
+          {% endcall %}
+          {% else %}<p class="text-secondary">هیچ واریز نامزدی ندارد.</p>{% endif %}
+
+          {% if operator.role in ("ADMIN", "REVIEWER") %}
+            {% if c.status in ("PENDING", "FULFILLED_UNRECONCILED") %}
+
+            {% if r.attachable %}
+            {# The matcher only suggests what fits its rule. These are the
+               nearby credits nobody has spent, so a payment and its money
+               can still be joined by hand instead of being verified with
+               no transaction at all. #}
+            {% set attach_options = [] %}
+            {% for t, delta in r.attachable %}
+              {% set _ = attach_options.append((t.id, (t.amount_irr | toman) ~ " · " ~ (t.bank_timestamp | jalali_dt) ~ " · " ~ (delta | fa_number) ~ " ثانیه فاصله" ~ (" · اختلاف مبلغ" if t.amount_irr != c.expected_amount_irr else ""))) %}
+            {% endfor %}
+            <form method="post" action="/payments/{{ c.id }}/approve?tab={{ tab }}" class="row g-2 align-items-end">
+              <div class="col-12 col-md">
+                {{ ui.field("transaction_id", "پیوست واریز دیگر", options=attach_options) }}
+              </div>
+              <div class="col-12 col-md-auto mb-3">{{ ui.btn("پیوست و تایید", type="submit") }}</div>
+            </form>
             {% endif %}
-            {% if c.note %}<p class="hint">یادداشت: {{ c.note }}</p>{% endif %}
-            {% if c.verified_by %}<p class="hint">تایید: {{ c.verified_by }} · {{ c.verified_at | jalali_dt }}</p>{% endif %}
-          </details>
-        </td>
-      </tr>
-    {% else %}<tr><td colspan="9" class="hint">این صف خالی است.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              <form method="post" action="/payments/{{ c.id }}/verify-manual?tab={{ tab }}" class="d-flex gap-1">
+                <input type="text" name="note" class="form-control form-control-sm" placeholder="دلیل تایید بدون تراکنش" required>
+                {{ ui.btn("تایید دستی", size="sm", type="submit") }}
+              </form>
+              <form method="post" action="/payments/{{ c.id }}/reject?tab={{ tab }}" class="d-flex gap-1">
+                <input type="text" name="note" class="form-control form-control-sm" placeholder="دلیل رد">
+                {{ ui.btn("رد", size="sm", type="submit") }}
+              </form>
+              <form method="post" action="/payments/{{ c.id }}/fake?tab={{ tab }}" class="d-flex gap-1">
+                <input type="text" name="note" class="form-control form-control-sm" placeholder="چرا جعلی">
+                {{ ui.btn("جعلی", size="sm", type="submit") }}
+              </form>
+              {% if c.parked_at %}
+              <form method="post" action="/payments/{{ c.id }}/unpark?tab={{ tab }}">{{ ui.btn("برگردان به صف", size="sm", type="submit") }}</form>
+              {% else %}
+              <form method="post" action="/payments/{{ c.id }}/park?tab={{ tab }}">{{ ui.btn("کنار بگذار", size="sm", type="submit") }}</form>
+              {% endif %}
+              <form method="post" action="/payments/{{ c.id }}/message?tab={{ tab }}" class="d-flex gap-1">
+                <select name="template" class="form-select form-select-sm">
+                  {% for k, (name, body) in templates.items() %}<option value="{{ k }}" title="{{ body }}">{{ name }}</option>{% endfor %}
+                </select>
+                {{ ui.btn("پیام به مشتری", size="sm", type="submit") }}
+              </form>
+            </div>
+
+            {% else %}
+            <form method="post" action="/payments/{{ c.id }}/reopen?tab={{ tab }}" class="mt-2">
+              {{ ui.btn("بازگشایی (تصمیم را برمی‌گرداند)", size="sm", type="submit") }}
+            </form>
+            {% endif %}
+          {% endif %}
+
+          {% if c.note %}<p class="text-secondary mt-2">یادداشت: {{ c.note }}</p>{% endif %}
+          {% if c.verified_by %}<p class="text-secondary">تایید: {{ c.verified_by }} · {{ c.verified_at | jalali_dt }}</p>{% endif %}
+        </details>
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+
+  {# Pagination: the arithmetic and the URL shape are the ones _pager.html
+     has always used, and the row-count line is its wording, kept verbatim. #}
+  {% set pages = ((total - 1) // page_size) + 1 if total else 1 %}
   {% set query_string = "tab=" ~ tab ~ "&q=" ~ q ~ "&purpose=" ~ (purpose or "") ~ "&" %}
-  {% include "_pager.html" %}
+  <div class="text-secondary mt-2" data-testid="row-count">{{ total | fa_number }} ردیف · صفحهٔ {{ page | fa_number }} از {{ pages | fa_number }}</div>
+  {{ ui.pagination(page, pages, "?" ~ query_string ~ "page={page}") }}
+
+  {% else %}
+  {{ ui.empty_state("این صف خالی است.") }}
+  {% endif %}
+{% endcall %}
 </div>
 {% endblock %}

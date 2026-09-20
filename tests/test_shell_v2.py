@@ -127,12 +127,44 @@ def test_tooltips_are_reinstated_after_an_htmx_swap():
     assert 'bootstrap.Tooltip.getOrCreateInstance' in source
 
 
-def test_no_existing_page_has_been_switched_over_yet():
-    """This phase adds the shell; it adopts nothing."""
+# The screens migrated to the Tabler shell so far. Each phase adds to this
+# list deliberately, so a screen can never drift onto the new shell unnoticed
+# and half-converted.
+MIGRATED = {"payments.html"}
+
+
+def test_only_the_screens_this_track_has_migrated_are_on_the_new_shell():
     templates_dir = ROOT / "app" / "web" / "templates"
-    adopters = [
+    adopters = {
         p.name for p in templates_dir.glob("*.html")
         if 'extends "base_v2.html"' in p.read_text() and p.name != "_shell_preview.html"
-    ]
-    assert adopters == [], f"these pages already switched: {adopters}"
-    assert 'extends "base.html"' in (templates_dir / "payments.html").read_text()
+    }
+    assert adopters == MIGRATED, f"expected {MIGRATED}, found {adopters}"
+
+
+def test_every_screen_not_yet_migrated_still_extends_the_old_base():
+    templates_dir = ROOT / "app" / "web" / "templates"
+    for path in templates_dir.glob("*.html"):
+        if path.name.startswith("_") or path.name in MIGRATED | {"base.html", "base_v2.html"}:
+            continue
+        assert 'extends "base.html"' in path.read_text(), f"{path.name} extends neither base"
+
+
+def test_the_new_shell_answers_to_the_same_handles_as_the_old_one():
+    """A migrated screen must not lose the handles the browser suite selects
+    on, or the suite silently stops covering it. Rendered, not grepped: some
+    handles are passed through a macro and only exist in the output."""
+    html = templates.get_template("_shell_preview.html").render(
+        operator=FakeOperator(),
+        nav=visible_nav("ADMIN"),
+        page_id="payments",
+        page_label=lambda pid: pid,
+        badges={"payments": 3},
+        env_name="test",
+        app_version="v",
+        rows=[],
+        notice_text="ثبت شد.",
+        error="خطا",
+    )
+    for handle in ("sidebar", "page-content", "bell", "bell-count", "flash-notice", "flash-error"):
+        assert f'data-testid="{handle}"' in html, f"the shell dropped the {handle} handle"

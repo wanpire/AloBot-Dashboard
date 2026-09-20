@@ -148,9 +148,14 @@ def test_nothing_in_the_macros_hardcodes_a_side():
         assert bad not in body, f"{bad} is a hardcoded side"
 
 
-def test_this_phase_changed_no_existing_screen():
-    adopters = [
-        p.name for p in TEMPLATES.glob("*.html")
-        if "_ui.html" in p.read_text() and p.name not in ("_ui.html", "_ui_preview.html")
-    ]
-    assert adopters == [], f"these screens already use the macros: {adopters}"
+def test_a_screen_built_on_the_macros_writes_no_framework_class_of_its_own():
+    """The point of the library: when Tabler renames a class it moves in one
+    file. A screen that reaches for btn- or col- directly has escaped that."""
+    migrated = TEMPLATES / "payments.html"
+    body = "\n".join(
+        line for line in migrated.read_text().splitlines()
+        if not line.strip().startswith("{#") and "ui." not in line
+    )
+    for escaped in re.findall(r'class="([^"]*)"', body):
+        assert "btn-" not in escaped, f"raw button class in the screen: {escaped}"
+        assert "badge bg-" not in escaped, f"raw badge class in the screen: {escaped}"

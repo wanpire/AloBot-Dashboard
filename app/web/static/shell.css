@@ -83,3 +83,12 @@ body {
   .ui-table .ui-cell-actions > div { justify-content: flex-start !important; }
   .ui-table .ui-row .ui-cell:last-child { border-bottom: 0; }
 }
+
+/* The receipt thumbnail on the review queue: same size it has always been. */
+.ui-receipt {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: var(--tblr-border-radius);
+  border: 1px solid var(--tblr-border-color);
+  display: block;
+}

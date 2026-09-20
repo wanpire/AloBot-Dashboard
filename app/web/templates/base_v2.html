@@ -9,6 +9,7 @@
   Everything it loads is served from this repository. There is not one
   external request on this page.
 #}
+{% import "_ui.html" as ui with context %}
 <!doctype html>
 <html dir="rtl" lang="fa" data-bs-theme="light">
 <head>
@@ -37,7 +38,7 @@
 <div class="page">
 
   {# ── Sidebar: static from md up, a drawer below it ─────────────────── #}
-  <aside class="navbar navbar-vertical navbar-expand-md" data-testid="v2-sidebar">
+  <aside class="navbar navbar-vertical navbar-expand-md" data-testid="sidebar">
     <div class="container-fluid">
       <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#v2-sidebar-menu"
               aria-controls="v2-sidebar-menu" aria-label="باز و بسته کردن منو" data-testid="v2-sidebar-toggle">
@@ -109,6 +110,15 @@
       <div class="container-fluid">
         <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
 
+          <a href="/payments?tab=review" class="btn btn-icon btn-ghost-secondary position-relative"
+             title="پرداخت‌های در انتظار بررسی" data-bs-toggle="tooltip"
+             data-poll="{{ bell_poll_seconds }}" data-count="{{ badges.get("payments") or 0 }}" data-testid="bell">
+            <span aria-hidden="true">🔔</span>
+            {% if badges.get("payments") %}
+            <span class="badge bg-red text-red-fg" data-testid="bell-count">{{ badges["payments"] | fa_number }}</span>
+            {% endif %}
+          </a>
+
           <button class="btn btn-icon btn-ghost-secondary" type="button" id="v2-theme-toggle"
                   aria-label="تغییر روشنایی" data-bs-toggle="tooltip" title="روشن / تاریک"
                   data-testid="v2-theme-toggle">
@@ -137,8 +147,14 @@
 
     <div class="page-body">
       <div class="container-fluid">
+        {% if continuity %}
+        {{ ui.toast("⚠️ حالت تداوم فعال است تا " ~ (continuity.until | jalali_dt) ~ " — " ~ continuity.reason ~ " (توسط " ~ continuity.by ~ "). پرداخت‌های تازه بدون مدرک بانکی به صف «حالت تداوم» می‌روند.", tone="warning", dismissible=False, data_testid="continuity-banner") }}
+        {% endif %}
+        {% if notice_text %}{{ ui.toast(notice_text, tone="success", data_testid="flash-notice") }}{% endif %}
+        {% if error %}{{ ui.toast(error, tone="danger", data_testid="flash-error") }}{% endif %}
+
         {% block page_actions %}{% endblock %}
-        <div data-testid="v2-content">
+        <div data-testid="page-content">
           {% block content %}{% endblock %}
         </div>
       </div>
@@ -158,6 +174,60 @@
     root.setAttribute("data-bs-theme", next);
     try { localStorage.setItem("alod-theme", next); } catch (e) { /* not remembered, still applied */ }
   });
+
+  // The bell keeps its own count up to date. Same behaviour as the old shell:
+  // poll, repaint, beep when the number grows, and degrade to a static count
+  // when anything is unavailable.
+  (function () {
+    var bell = document.querySelector('[data-testid="bell"]');
+    if (!bell) return;
+    var every = Number(bell.getAttribute("data-poll") || 0) * 1000;
+    if (!(every > 0)) return;
+    var baseTitle = document.title;
+    var known = Number(bell.getAttribute("data-count") || 0);
+    var audio = null;
+    document.addEventListener("click", function () {
+      if (!audio && window.AudioContext) { try { audio = new AudioContext(); } catch (e) { audio = null; } }
+    }, { once: true });
+    function fa(n) { return String(n).replace(/[0-9]/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹"[Number(d)]; }); }
+    function beep() {
+      if (!audio || audio.state !== "running") return;
+      try {
+        var osc = audio.createOscillator(), gain = audio.createGain();
+        osc.frequency.value = 880; gain.gain.value = 0.04;
+        osc.connect(gain); gain.connect(audio.destination);
+        osc.start(); osc.stop(audio.currentTime + 0.12);
+      } catch (e) { /* a browser that will not beep is not a broken panel */ }
+    }
+    function paint(n) {
+      var badge = bell.querySelector('[data-testid="bell-count"]');
+      if (n > 0) {
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "badge bg-red text-red-fg";
+          badge.setAttribute("data-testid", "bell-count");
+          bell.appendChild(badge);
+        }
+        badge.textContent = fa(n);
+      } else if (badge) {
+        badge.remove();
+      }
+      document.title = (n > 0 ? "(" + fa(n) + ") " : "") + baseTitle;
+    }
+    setInterval(function () {
+      fetch("/bell", { credentials: "same-origin", headers: { accept: "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          var n = Number(data.review || 0);
+          if (n > known) beep();
+          known = n;
+          bell.setAttribute("data-count", n);
+          paint(n);
+        })
+        .catch(function () { /* one failed poll is not worth a visible error */ });
+    }, every);
+  })();
 
   // Dropdowns, collapses and modals use delegated events and survive a swap.
   // Tooltips and popovers do not: they are instantiated per element, so any
