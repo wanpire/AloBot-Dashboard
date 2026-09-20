@@ -45,5 +45,8 @@ GRANT CONNECT ON DATABASE "$COPY_DB" TO dashboard_ro;
 GRANT USAGE ON SCHEMA public TO dashboard_ro;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO dashboard_ro;
 SQL
-echo "AloBot copy ready: ${DB_URL/dashboard:dashboard@/dashboard_ro:ro@} (read-only role dashboard_ro)"
+# Print the URL to PUT IN .env, with no password in it: this line ends up in
+# whatever captured the deploy, and the admin password has no business there.
+SAFE_URL="$(python3 -c "import sys,urllib.parse as u; p=u.urlsplit(sys.argv[1]); print(f'postgresql+asyncpg://dashboard_ro:***@{p.hostname}:{p.port or 5432}{p.path}')" "$DB_URL")"
+echo "AloBot copy ready: $SAFE_URL (read-only role dashboard_ro, password 'ro')"
 echo "alembic head in the copy: $(psql "$DB_URL" -tA -c 'SELECT version_num FROM alembic_version')"
