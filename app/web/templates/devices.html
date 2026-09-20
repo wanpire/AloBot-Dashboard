@@ -1,43 +1,73 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "revoked" %}<div class="flash flash--ok">توکن باطل شد. این گوشی تا صدور توکن تازه چیزی نمی‌فرستد.</div>{% elif notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
+{% if notice == "revoked" %}{{ ui.toast("توکن باطل شد. این گوشی تا صدور توکن تازه چیزی نمی‌فرستد.", tone="success") }}
+{% elif notice == "saved" %}{{ ui.toast("ذخیره شد.", tone="success") }}{% endif %}
+
 {% include "_token_reveal.html" %}
-<div class="card">
-  <table>
-    <thead><tr><th>کد</th><th>نام</th><th>وضعیت</th><th>توکن</th><th>آخرین تماس</th><th>آخرین پیامک موفق</th><th>آخرین خطای احراز</th><th></th></tr></thead>
-    <tbody>
+
+{% call ui.card() %}
+  {% if devices %}
+  {% call ui.table(["کد", "نام", "وضعیت", "توکن", "آخرین تماس", "آخرین پیامک موفق", "آخرین خطای احراز", ""]) %}
     {% for device, cred in devices %}
-      <tr>
-        <td dir="ltr">{{ device.code }}</td>
-        <td>{{ device.display_name }}</td>
-        <td>{{ "فعال" if device.is_active else "غیرفعال" }}</td>
-        <td>{% if cred %}<span dir="ltr">{{ cred.token_prefix }}…</span>{% else %}<span class="badge">ندارد</span>{% endif %}</td>
-        <td>{% if device.last_seen_at %}{{ device.last_seen_at | jalali_dt }}{% else %}—{% endif %}</td>
-        <td>{% if device.last_success_at %}{{ device.last_success_at | jalali_dt }}{% else %}—{% endif %}</td>
-        <td>{% if device.last_auth_failure_at %}{{ device.last_auth_failure_at | jalali_dt }}{% else %}—{% endif %}</td>
-        <td>
-          {% if operator.role == "ADMIN" %}
-          <details><summary data-testid="device-actions-summary">عملیات</summary>
-            <form method="post" action="/devices/{{ device.id }}/rotate" class="inline" data-testid="device-rotate-form"><label><input type="checkbox" name="confirm" value="1" data-testid="device-rotate-confirm"> می‌دانم توکن فعلی همان لحظه از کار می‌افتد</label><button class="btn" type="submit" data-testid="device-rotate-btn">چرخاندن توکن</button></form>
-            <form method="post" action="/devices/{{ device.id }}/revoke" class="inline"><label><input type="checkbox" name="confirm" value="1"> می‌دانم پیامک‌های این گوشی قطع می‌شود</label><button class="btn" type="submit">ابطال توکن</button></form>
-            <form method="post" action="/devices/{{ device.id }}/active" class="inline"><input type="hidden" name="active" value="{{ '0' if device.is_active else '1' }}"><button class="btn" type="submit">{{ "غیرفعال کن" if device.is_active else "فعال کن" }}</button></form>
-            <form method="post" action="/devices/{{ device.id }}/rename" class="inline"><input type="text" name="display_name" value="{{ device.display_name }}"><button class="btn" type="submit">تغییر نام</button></form>
-          </details>
-          {% endif %}
-        </td>
-      </tr>
-    {% else %}<tr><td colspan="8" class="hint">هنوز دستگاهی ثبت نشده.</td></tr>{% endfor %}
-    </tbody>
-  </table>
-</div>
+    {% call ui.row() %}
+      {% call ui.cell("کد") %}<span dir="ltr">{{ device.code }}</span>{% endcall %}
+      {% call ui.cell("نام") %}{{ device.display_name }}{% endcall %}
+      {% call ui.cell("وضعیت") %}{{ ui.state_badge("ACTIVE" if device.is_active else "DISABLED", family="card", label="فعال" if device.is_active else "غیرفعال") }}{% endcall %}
+      {% call ui.cell("توکن") %}
+        {% if cred %}<span dir="ltr">{{ cred.token_prefix }}…</span>{% else %}{{ ui.state_badge("", label="ندارد") }}{% endif %}
+      {% endcall %}
+      {% call ui.cell("آخرین تماس") %}{% if device.last_seen_at %}{{ device.last_seen_at | jalali_dt }}{% else %}—{% endif %}{% endcall %}
+      {% call ui.cell("آخرین پیامک موفق") %}{% if device.last_success_at %}{{ device.last_success_at | jalali_dt }}{% else %}—{% endif %}{% endcall %}
+      {% call ui.cell("آخرین خطای احراز") %}{% if device.last_auth_failure_at %}{{ device.last_auth_failure_at | jalali_dt }}{% else %}—{% endif %}{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if operator.role == "ADMIN" %}
+        <details class="w-100"><summary class="text-primary" data-testid="device-actions-summary">عملیات</summary>
+          <div class="d-flex flex-column gap-2 mt-2">
+            {# Both of these stop the phone the instant they are pressed, so
+               each one states what stops and will not act until it is ticked.
+               The server refuses a post without confirm=1 regardless. #}
+            {{ ui.confirm_button("چرخاندن توکن", "می‌دانم توکن فعلی همان لحظه از کار می‌افتد",
+                                 "/devices/" ~ device.id ~ "/rotate", tone="",
+                                 attrs={"data-testid": "device-rotate-form"},
+                                 confirm_attrs={"data-testid": "device-rotate-confirm"},
+                                 button_attrs={"data-testid": "device-rotate-btn"}) }}
+            {{ ui.confirm_button("ابطال توکن", "می‌دانم پیامک‌های این گوشی قطع می‌شود",
+                                 "/devices/" ~ device.id ~ "/revoke", tone="") }}
+            <form method="post" action="/devices/{{ device.id }}/active">
+              <input type="hidden" name="active" value="{{ '0' if device.is_active else '1' }}">
+              {{ ui.btn("غیرفعال کن" if device.is_active else "فعال کن", size="sm", type="submit") }}
+            </form>
+            <form method="post" action="/devices/{{ device.id }}/rename" class="d-flex gap-1">
+              {{ ui.inline_input("display_name", value=device.display_name) }}
+              {{ ui.btn("تغییر نام", size="sm", type="submit") }}
+            </form>
+          </div>
+        </details>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("هنوز دستگاهی ثبت نشده.") }}{% endif %}
+{% endcall %}
+
 {% if operator.role == "ADMIN" %}
-<div class="card" style="margin-top:16px">
-  <h2>دستگاه جدید</h2>
+<div class="mt-3">
+{% call ui.card("دستگاه جدید") %}
   <form method="post" action="/devices">
-    <label>کد دستگاه <input type="text" name="code" placeholder="phone-a" dir="ltr" required data-testid="device-code-input"><span class="hint">همان چیزی که گوشی در فیلد deviceId می‌فرستد.</span></label>
-    <label>نام <input type="text" name="display_name" placeholder="گوشی ملت" required data-testid="device-name-input"></label>
-    <button class="btn btn--primary" type="submit" data-testid="device-create-btn">ساختن و صدور توکن</button>
+    <div class="row g-2">
+      <div class="col-12 col-md-6">
+        {{ ui.field("code", "کد دستگاه", required=True, hint="همان چیزی که گوشی در فیلد deviceId می‌فرستد.",
+                    attrs={"placeholder": "phone-a", "dir": "ltr"}, data_testid="device-code-input") }}
+      </div>
+      <div class="col-12 col-md-6">
+        {{ ui.field("display_name", "نام", required=True, attrs={"placeholder": "گوشی ملت"}, data_testid="device-name-input") }}
+      </div>
+    </div>
+    {{ ui.btn("ساختن و صدور توکن", tone="primary", type="submit", data_testid="device-create-btn") }}
   </form>
+{% endcall %}
 </div>
 {% endif %}
 {% endblock %}

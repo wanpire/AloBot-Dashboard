@@ -134,7 +134,7 @@ MIGRATED = {
     "payments.html", "login.html", "password.html", "error.html",
     "overview.html", "stats.html", "customers.html", "customer.html",
     "orders.html", "subscriptions.html", "resellers.html", "alobot_unavailable.html",
-    "transactions.html", "accounts.html", "banks.html",
+    "transactions.html", "accounts.html", "banks.html", "devices.html",
 }
 
 

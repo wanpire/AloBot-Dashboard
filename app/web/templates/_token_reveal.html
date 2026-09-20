@@ -1,19 +1,24 @@
+{#
+  The device token, shown once and never again. Included by the devices
+  screen after a token is issued or rotated.
+#}
+{% import "_ui.html" as ui with context %}
 {% if new_token %}
-<div class="card card--token" data-testid="token-reveal">
-  <h2>توکن دستگاه «{{ token_device.display_name }}» — فقط همین یک بار نشان داده می‌شود</h2>
+{% call ui.card(attrs={"data-testid": "token-reveal"}) %}
+  {% call ui.card_title() %}توکن دستگاه «{{ token_device.display_name }}» — فقط همین یک بار نشان داده می‌شود{% endcall %}
   <p>این مقدار را در اپ رله روی گوشی، در فیلد <code>apiKey</code> بگذارید. در سرور فقط هش آن نگه داشته می‌شود؛ اگر گم شد باید توکن را بچرخانید.</p>
-  <pre dir="ltr" data-token="{{ new_token }}">{{ new_token }}</pre>
-  <button class="btn" type="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.dataset.token)">کپی توکن</button>
-  <details style="margin-top:10px"><summary>قالب JSON برای اپ رله</summary>
-<pre dir="ltr">{
-  "apiKey": "{{ new_token }}",
-  "deviceId": "{{ token_device.code }}",
+  <pre dir="ltr" class="ui-code mb-0" data-token="{{ new_token }}">{{ new_token }}</pre>
+  {{ ui.btn("کپی توکن", attrs={"onclick": "navigator.clipboard.writeText(this.previousElementSibling.dataset.token)"}) }}
+  <details class="mt-2"><summary class="text-primary">قالب JSON برای اپ رله</summary>
+{{ ui.code_block('{
+  "apiKey": "' ~ new_token ~ '",
+  "deviceId": "' ~ token_device.code ~ '",
   "message": "{sms_body}",
   "sender": "{sms_sender}",
   "timestamp": "{sms_timestamp}",
   "checksum": "{sms_checksum}"
-}</pre>
-  <p class="hint">آدرس: <code dir="ltr">https://&lt;host&gt;/api/v1/sms</code> · روش POST · نوع JSON</p>
+}', dir="ltr") }}
+    <p class="text-secondary">آدرس: <code dir="ltr">https://&lt;host&gt;/api/v1/sms</code> · روش POST · نوع JSON</p>
   </details>
-</div>
+{% endcall %}
 {% endif %}

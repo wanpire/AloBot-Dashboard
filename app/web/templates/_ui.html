@@ -236,13 +236,19 @@
   already refuse a post without `confirm=1` - and this only makes the rule
   visible. Nothing here enforces it.
 #}
-{%- macro confirm_button(label, consequence, action, tone="btn-danger", name="confirm", attrs=None) -%}
+{%- macro confirm_button(label, consequence, action, tone="btn-danger", name="confirm", attrs=None, confirm_attrs=None, button_attrs=None) -%}
+{#
+  `confirm_attrs` and `button_attrs` reach the checkbox and the button. A test
+  that drives this control has to tick the box and then press the button, so
+  both need a handle of their own; without them a screen would have to write
+  the form by hand to be testable at all.
+#}
 <form method="post" action="{{ action }}"{{ _attrs(attrs, kwargs, "d-inline-flex flex-wrap align-items-center gap-2") }}>
   <label class="form-check form-check-inline m-0">
-    <input class="form-check-input" type="checkbox" name="{{ name }}" value="1">
+    <input type="checkbox" name="{{ name }}" value="1"{{ _attrs(confirm_attrs, {}, "form-check-input") }}>
     <span class="form-check-label">{{ consequence }}</span>
   </label>
-  <button class="btn {{ tone }}" type="submit">{{ label }}</button>
+  <button type="submit"{{ _attrs(button_attrs, {}, "btn " ~ tone) }}>{{ label }}</button>
 </form>
 {%- endmacro -%}
 
