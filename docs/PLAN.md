@@ -239,7 +239,7 @@ the receipt image waits for Phase 7 (only AloBot's token can fetch it).
 
 ---
 
-## Phase 5 — Write screens on AloBot's tables (against the copy only)
+## Phase 5 — Write screens on AloBot's tables (against the copy only) ✅
 
 Goal: the shop can be administered from the web. All writes go to the **copy**
 database through a write-capable role that exists only there; production stays
@@ -275,6 +275,12 @@ read-only until Phase 7.
 Exit criteria: a browser walk of every write screen against the seeded copy,
 each save read back from the database not from the response; the write-guard
 test still passes with every new route.
+
+**Done 2026-09-20** — 328 tests. Every screen was walked against the running
+container with a scoped `dashboard_rw` role on the local copy and every save
+read back with psql, not from the response. The walk found one real bug:
+`/access/reviewers/reset` was shadowed by `/access/reviewers/{telegram_id}`,
+so the reset button 422'd; fixed and pinned by a test.
 
 ---
 

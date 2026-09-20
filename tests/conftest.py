@@ -25,7 +25,21 @@ os.environ.setdefault("RUN_SWEEPS", "false")
 ALOBOT_COPY_DB = "alobot_copy_test"
 ALOBOT_ADMIN_URL = TEST_DATABASE_URL.rsplit("/", 1)[0] + "/" + ALOBOT_COPY_DB
 ALOBOT_RO_URL = ALOBOT_ADMIN_URL.replace("//dashboard:dashboard@", "//dashboard_ro:ro@")
+# The write role is scoped to the tables the dashboard may edit; everything
+# else it can only read. Production gets the same shape in Phase 7.
+ALOBOT_RW_URL = ALOBOT_ADMIN_URL.replace("//dashboard:dashboard@", "//dashboard_rw:rw@")
 os.environ["ALOBOT_DATABASE_URL"] = ALOBOT_RO_URL
+os.environ["ALOBOT_WRITE_DATABASE_URL"] = ALOBOT_RW_URL
+os.environ.setdefault("ALOBOT_DB_WRITES_ENABLED", "true")
+
+# The only AloBot tables this project may ever write. Anything else stays
+# SELECT-only even for the write role - that is what makes "the dashboard
+# cannot touch payments or vpn_users" a privilege, not a promise.
+ALOBOT_WRITABLE_TABLES = (
+    "services", "service_locations", "app_config", "discount_codes",
+    "tutorial_platforms", "tutorial_protocols", "tutorial_guides",
+    "download_links", "openvpn_profiles", "admin_users",
+)
 
 
 def alembic(*args: str) -> subprocess.CompletedProcess:
@@ -78,9 +92,10 @@ def alobot_copy_schema():
         try:
             await admin.execute(f'DROP DATABASE IF EXISTS "{ALOBOT_COPY_DB}"')
             await admin.execute(f'CREATE DATABASE "{ALOBOT_COPY_DB}"')
-            exists = await admin.fetchval("SELECT 1 FROM pg_roles WHERE rolname = 'dashboard_ro'")
-            if not exists:
-                await admin.execute("CREATE ROLE dashboard_ro LOGIN PASSWORD 'ro'")
+            for role, password in (("dashboard_ro", "ro"), ("dashboard_rw", "rw")):
+                exists = await admin.fetchval("SELECT 1 FROM pg_roles WHERE rolname = $1", role)
+                if not exists:
+                    await admin.execute(f"CREATE ROLE {role} LOGIN PASSWORD '{password}'")
         finally:
             await admin.close()
 
@@ -93,8 +108,11 @@ def alobot_copy_schema():
     async def grant():
         conn = await asyncpg.connect(ALOBOT_ADMIN_URL.replace("postgresql+asyncpg://", "postgresql://"))
         try:
-            await conn.execute("GRANT USAGE ON SCHEMA public TO dashboard_ro")
-            await conn.execute("GRANT SELECT ON ALL TABLES IN SCHEMA public TO dashboard_ro")
+            await conn.execute("GRANT USAGE ON SCHEMA public TO dashboard_ro, dashboard_rw")
+            await conn.execute("GRANT SELECT ON ALL TABLES IN SCHEMA public TO dashboard_ro, dashboard_rw")
+            for table in ALOBOT_WRITABLE_TABLES:
+                await conn.execute(f"GRANT INSERT, UPDATE, DELETE ON {table} TO dashboard_rw")
+            await conn.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO dashboard_rw")
         finally:
             await conn.close()
 
@@ -118,9 +136,11 @@ async def clean_tables(migrated_schema):
     """Every test starts from empty tables (schema kept, rows truncated)."""
     from app.db.session import engine
     from app.api.ingest import device_limiter, ip_limiter
+    from app.services import pace
     from app.web.routes.auth import login_limiter
 
     yield
+    pace.reset()
     login_limiter.reset()
     device_limiter.reset()
     ip_limiter.reset()

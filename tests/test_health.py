@@ -3,6 +3,7 @@
 import httpx
 
 from app.alobot.link import link
+from app.core.config import get_settings
 from app.main import app
 
 
@@ -21,7 +22,9 @@ async def test_health_reports_own_db_and_a_compatible_alobot_link():
     assert body["env"] == "test"
     assert body["db"] == "ok"
     assert body["alobot_db"] == "ok"
-    assert body["alobot_db_writes_enabled"] is False
+    # Reported, not assumed: the test deployment enables writes against the
+    # COPY. Production's default-off is pinned in tests/test_config.py.
+    assert body["alobot_db_writes_enabled"] is get_settings().alobot_db_writes_enabled
 
 
 async def test_health_names_an_incompatible_alobot_schema(monkeypatch):

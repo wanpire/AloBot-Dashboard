@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
+<div class="flash">این متن‌ها در پایگاه‌دادهٔ <b>همین داشبورد</b> ذخیره می‌شوند. آلوبات هنوز آن‌ها را نمی‌خواند — در فاز یکپارچه‌سازی وصل می‌شود و تا آن روز متن‌های خودش را نشان می‌دهد. پیش‌فرض‌های زیر همان‌هایی‌اند که ربات امروز می‌گوید.</div>
+{% for spec in specs %}
+<div class="card" style="margin-bottom:12px">
+  <h3>{{ spec.label }} <span class="hint" dir="ltr">{{ spec.key }}</span></h3>
+  <p class="hint">{{ spec.hint }}{% if spec.placeholders %} جای‌گذارها که باید بمانند: <span dir="ltr">{{ spec.placeholders | join(" ") }}</span>{% endif %}</p>
+  <form method="post" action="/texts/{{ spec.key }}">
+    <textarea name="value" rows="3" dir="auto" {% if operator.role != "ADMIN" %}disabled{% endif %}>{{ values[spec.key] }}</textarea>
+    {% if operator.role == "ADMIN" %}
+    <button class="btn btn--primary" type="submit">ذخیره</button>
+    {% if values[spec.key] != spec.default %}<button class="btn" type="submit" name="reset" value="1">بازگشت به پیش‌فرض</button>{% endif %}
+    {% endif %}
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

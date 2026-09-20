@@ -119,39 +119,3 @@ async def resellers(request: Request, operator=Depends(page("resellers"))):
     return render(request, "resellers.html", page_id="resellers", rows=rows, **_ctx())
 
 
-@router.get("/catalog")
-async def catalog(request: Request, operator=Depends(page("catalog"))):
-    if not link.available:
-        return _unavailable(request, "catalog")
-    async with link.session() as s:
-        data = await queries.catalog(s)
-    return render(request, "catalog.html", page_id="catalog", **_ctx(**data))
-
-
-@router.get("/discounts")
-async def discounts(request: Request, operator=Depends(page("discounts"))):
-    if not link.available:
-        return _unavailable(request, "discounts")
-    async with link.session() as s:
-        rows = await queries.discount_codes(s)
-    return render(request, "discounts.html", page_id="discounts", rows=rows, **_ctx())
-
-
-@router.get("/tutorials")
-async def tutorials(request: Request, operator=Depends(page("tutorials"))):
-    if not link.available:
-        return _unavailable(request, "tutorials")
-    async with link.session() as s:
-        data = await queries.tutorials(s)
-    return render(request, "tutorials.html", page_id="tutorials", **_ctx(**data))
-
-
-@router.get("/botsettings")
-async def botsettings(request: Request, operator=Depends(page("botsettings"))):
-    if not link.available:
-        return _unavailable(request, "botsettings")
-    async with link.session() as s:
-        values = await queries.bot_settings(s)
-    known = [(k, BOT_SETTING_LABELS[k], values.get(k)) for k in BOT_SETTING_LABELS]
-    other = sorted((k, v) for k, v in values.items() if k not in BOT_SETTING_LABELS)
-    return render(request, "botsettings.html", page_id="botsettings", known=known, other=other, **_ctx())

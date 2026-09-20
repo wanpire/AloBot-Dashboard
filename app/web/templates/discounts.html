@@ -1,14 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
 {% include "_alobot_banner.html" %}
 <div class="card">
   <table>
-    <thead><tr><th>کد</th><th>درصد</th><th>نوع</th><th>سقف</th><th>مصرف (ربات)</th><th>مصرف (ثبت‌شده)</th><th>تخفیف داده‌شده</th><th>دامنه</th><th>وضعیت</th><th>ساخت</th></tr></thead>
+    <thead><tr><th>کد</th><th>درصد</th><th>نوع</th><th>سقف</th><th>مصرف</th><th>تخفیف داده‌شده</th><th>دامنه</th><th>وضعیت</th><th></th></tr></thead>
     <tbody>
     {% for d in rows %}
-      <tr><td dir="ltr">{{ d.code }}</td><td>{{ d.percent | int | fa_number }}٪</td><td>{{ "عمومی" if d.is_public else "خصوصی / VIP" }}</td><td>{{ d.usage_limit | fa_number if d.usage_limit else "نامحدود" }}</td><td>{{ d.used_count | fa_number }}</td><td>{{ d.uses | fa_number }}</td><td>{{ d.given | toman_amount }}</td><td>{{ d.categories or "همه" }}</td><td>{{ "فعال" if d.is_active else "غیرفعال" }}</td><td>{{ d.created_at | jalali_dt }}</td></tr>
-    {% else %}<tr><td colspan="10" class="hint">کدی ثبت نشده.</td></tr>{% endfor %}
+      <tr>
+        <td dir="ltr">{{ d.code }}</td><td>{{ d.percent | int | fa_number }}٪</td><td>{{ "عمومی" if d.is_public else "خصوصی / VIP" }}</td>
+        <td>{{ d.usage_limit | fa_number if d.usage_limit else "نامحدود" }}</td><td>{{ d.uses | fa_number }}</td><td>{{ d.given | toman_amount }}</td>
+        <td>{{ d.categories or "همه" }}</td><td>{{ "فعال" if d.is_active else "غیرفعال" }}</td>
+        <td>
+          <a class="link" href="/discounts?usages={{ d.id }}">مصرف‌کننده‌ها</a>
+          {% if alobot_writes and operator.role == "ADMIN" %}
+          <form method="post" action="/discounts/{{ d.id }}/active" class="inline"><input type="hidden" name="active" value="{{ '0' if d.is_active else '1' }}"><button class="btn" type="submit">{{ "غیرفعال کن" if d.is_active else "فعال کن" }}</button></form>
+          {% if not d.uses %}<form method="post" action="/discounts/{{ d.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}<tr><td colspan="9" class="hint">کدی ثبت نشده.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
+{% if usages %}
+<div class="card" style="margin-top:16px">
+  <h2>مصرف‌کننده‌های کد {{ usages.code_id | fa_number }}</h2>
+  <table><thead><tr><th>مشتری</th><th>درصد</th><th>قیمت اصلی</th><th>پرداختی</th><th>زمان</th></tr></thead>
+  <tbody>{% for u in usages.rows %}<tr><td><a class="link" href="/customers/{{ u.telegram_id }}">{{ u.telegram_id | string | fa }}</a></td><td>{{ u.percent | int | fa_number }}٪</td><td>{{ u.original_amount | toman_amount }}</td><td>{{ u.amount | toman_amount }}</td><td>{{ u.used_at | jalali_dt }}</td></tr>{% else %}<tr><td colspan="5" class="hint">هنوز کسی استفاده نکرده.</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endif %}
+{% if alobot_writes and operator.role == "ADMIN" %}
+<div class="card" style="margin-top:16px">
+  <h2>کد جدید</h2>
+  <form method="post" action="/discounts">
+    <label>کد <input type="text" name="code" dir="ltr" required><span class="hint">با حروف بزرگ ذخیره می‌شود، همان‌طور که ربات می‌خواندش.</span></label>
+    <label>درصد تخفیف <input type="number" name="percent" min="1" max="100" required></label>
+    <label>سقف استفاده <input type="number" name="usage_limit" min="1" placeholder="خالی = نامحدود"></label>
+    <label>دامنه
+      <div class="filters">{% for c in categories %}<label><input type="checkbox" name="cat_{{ c }}"> {{ category_labels[c] }}</label>{% endfor %}</div>
+      <span class="hint">هیچ‌کدام یا همه = برای همهٔ سرویس‌ها.</span>
+    </label>
+    <label><input type="checkbox" name="is_public" checked> عمومی (قیمت با تخفیف به همه نشان داده می‌شود)</label>
+    <button class="btn btn--primary" type="submit">ساختن</button>
+  </form>
+  <p class="hint">تاریخ انقضا و سقف به‌ازای هر مشتری هنوز در اسکیمای آلوبات نیستند؛ مهاجرتش برای فاز یکپارچه‌سازی در <span dir="ltr">docs/alobot-migrations/</span> نوشته شده است.</p>
+</div>
+{% endif %}
 {% endblock %}

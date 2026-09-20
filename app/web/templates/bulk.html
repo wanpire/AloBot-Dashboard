@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "queued" %}<div class="flash flash--ok">ارسال در صف قرار گرفت و در پس‌زمینه می‌رود.</div>{% endif %}
+{% if not alobot_available %}<div class="flash flash--err">پایگاه‌دادهٔ آلوبات متصل نیست؛ فهرست مخاطبان از آن‌جا خوانده می‌شود.</div>{% endif %}
+{% if operator.role == "ADMIN" and alobot_available %}
+<div class="card">
+  <h2>ارسال گروهی</h2>
+  <p class="hint">پیام بی‌درنگ برای هر مخاطب صف می‌شود و برگشت‌پذیر نیست. فهرست گیرندگان همان لحظه ثبت می‌شود، پس کسی که وسط ارسال خرید کند حساب ارسال را عوض نمی‌کند. ارسال ناموفق دوباره تلاش نمی‌شود — دلیلش در پایین همین صفحه می‌آید.</p>
+  <form method="post" action="/bulk">
+    <input type="hidden" name="batch_id" value="{{ batch_id }}">
+    <label>مخاطب <select name="audience">{% for a in audiences %}<option value="{{ a.id }}">{{ a.label }} — {{ reaches.get(a.id, 0) | fa_number }} نفر</option>{% endfor %}</select>
+      <span class="hint">{% for a in audiences %}{{ a.label }}: {{ a.hint }} {% endfor %}</span></label>
+    <label>متن پیام <textarea name="body" rows="5" dir="auto" required></textarea></label>
+    <div class="filters">
+      <label>عنوان دکمه (اختیاری) <input type="text" name="button_text"></label>
+      <label>لینک دکمه <input type="url" name="button_url" dir="ltr"></label>
+    </div>
+    <label><input type="checkbox" name="confirm" value="1"> می‌دانم این پیام به همهٔ مخاطبان انتخاب‌شده می‌رود و برگشت‌پذیر نیست</label>
+    <button class="btn btn--primary" type="submit">ثبت و شروع ارسال</button>
+  </form>
+</div>
+{% endif %}
+{% if detail %}
+<div class="card" style="margin-top:16px">
+  <h2>ارسال {{ detail.progress.id | fa_number }}</h2>
+  <p>وضعیت: {{ {"PENDING": "در صف", "SENDING": "در حال ارسال", "DONE": "تمام شد"}[detail.progress.status] }} ·
+     {{ detail.progress.sent | fa_number }} رسیده · {{ detail.progress.failed | fa_number }} نرسیده · {{ detail.progress.pending | fa_number }} مانده از {{ detail.progress.total | fa_number }}</p>
+  {% if detail.failures %}
+  <h3>نرسیده‌ها</h3>
+  <table><thead><tr><th>مشتری</th><th>دلیل</th></tr></thead><tbody>{% for f in detail.failures %}<tr><td><a class="link" href="/customers/{{ f.chat_id }}">{{ f.chat_id | string | fa }}</a></td><td dir="ltr">{{ f.error }}</td></tr>{% endfor %}</tbody></table>
+  {% endif %}
+</div>
+{% endif %}
+<div class="card" style="margin-top:16px">
+  <h2>ارسال‌های اخیر</h2>
+  <table><thead><tr><th>#</th><th>مخاطب</th><th>متن</th><th>وضعیت</th><th>رسیده</th><th>نرسیده</th><th>توسط</th><th>زمان</th></tr></thead>
+  <tbody>{% for b in recent %}<tr>
+    <td><a class="link" href="/bulk?id={{ b.id }}">{{ b.id | fa_number }}</a></td><td>{{ b.audience }}</td><td>{{ b.body[:40] }}…</td>
+    <td>{{ {"PENDING": "در صف", "SENDING": "در حال ارسال", "DONE": "تمام شد"}[b.status] }}</td>
+    <td>{{ b.sent | fa_number }}</td><td>{{ b.failed | fa_number }}</td><td dir="ltr">{{ b.created_by }}</td><td>{{ b.created_at | jalali_dt }}</td>
+  </tr>{% else %}<tr><td colspan="8" class="hint">هنوز ارسالی ثبت نشده.</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}

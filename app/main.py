@@ -32,6 +32,7 @@ from app.web.routes import auth as auth_routes
 from app.web.routes import events as event_routes
 from app.web.routes import pages as page_routes
 from app.web.routes import payments as payment_routes
+from app.web.routes import editors as editor_routes
 from app.web.routes import pipeline as pipeline_routes
 from app.web.routes import settings as settings_routes
 from app.web.templating import render
@@ -77,6 +78,7 @@ app.include_router(alobot_pages.router)
 app.include_router(ingest_api.router)
 app.include_router(pipeline_routes.router)
 app.include_router(payment_routes.router)
+app.include_router(editor_routes.router)
 app.include_router(page_routes.router)  # placeholders last: specific pages above win
 
 

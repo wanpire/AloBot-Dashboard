@@ -41,10 +41,14 @@ class Settings(BaseSettings):
     alobot_database_url: str = ""
 
     # Writes to AloBot tables (catalog, discount codes, tutorials,
-    # settings) stay off until the final integration phase explicitly
-    # flips this. The DB role behind `alobot_database_url` is the real
-    # guard; this flag is the application-level one that lets the UI
-    # say "read-only" honestly instead of failing on save.
+    # settings) are gated TWICE. This URL must name a role that is allowed
+    # to write those tables and nothing else; blank means no write engine
+    # exists at all, which is the state production stays in until Phase 7.
+    alobot_write_database_url: str = ""
+
+    # ...and this flag must also be true. The role is the real guard; the
+    # flag is what lets the UI say "read-only" honestly instead of failing
+    # on save, and what an operator can turn off without touching Postgres.
     alobot_db_writes_enabled: bool = False
 
     # Random secret for signing session cookies. Generate with

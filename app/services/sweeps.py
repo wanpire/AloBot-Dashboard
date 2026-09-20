@@ -143,9 +143,19 @@ async def _outbox_flush(session: AsyncSession) -> dict:
     return result
 
 
+async def _broadcast_drain(session: AsyncSession) -> dict:
+    from app.core.config import get_settings
+    from app.services.broadcast import drain
+    from app.services.telegram import TelegramApi
+
+    token = get_settings().telegram_bot_token
+    return await drain(session, TelegramApi(token) if token else None)
+
+
 registry.register("claims.mirror", _claims_mirror)
 registry.register("claims.settle", _claims_settle)
 registry.register("outbox.flush", _outbox_flush)
+registry.register("broadcast.drain", _broadcast_drain)
 registry.register("events.flush", _events_flush)
 registry.register("events.prune", _events_prune)
 registry.register("sessions.prune", _sessions_prune)

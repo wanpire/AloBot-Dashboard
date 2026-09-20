@@ -46,4 +46,44 @@
     <button class="btn btn--primary" type="submit">ساختن</button>
   </form>
 </div>
+
+<div class="card" style="margin-top:24px">
+  <h2>ادمین‌های ربات آلوبات</h2>
+  {% if not alobot_available %}
+    <p class="hint">پایگاه‌دادهٔ آلوبات متصل نیست.</p>
+  {% else %}
+  <p class="hint">این‌ها کسانی‌اند که در <b>خود تلگرام</b> پنل مدیریت ربات را می‌بینند — جدا از اپراتورهای همین داشبورد بالا. سه سطح پلکانی است: پشتیبانی &lt; فروش &lt; مدیر کامل.</p>
+  <table>
+    <thead><tr><th>شناسهٔ تلگرام</th><th>سطح</th><th>بررسی‌کنندهٔ پرداخت</th><th>از تاریخ</th><th></th></tr></thead>
+    <tbody>
+    {% for a in bot_admins %}
+      <tr>
+        <td dir="ltr">{{ a.telegram_id }}</td>
+        <td>{% if alobot_writes %}
+          <form method="post" action="/access/bot-admins/{{ a.telegram_id }}/level" class="inline">
+            <select name="level" onchange="this.form.submit()">{% for l in bot_levels %}<option value="{{ l }}" {% if l == a.level %}selected{% endif %}>{{ bot_level_labels[l] }}</option>{% endfor %}</select>
+          </form>
+        {% else %}{{ bot_level_labels.get(a.level, a.level) }}{% endif %}</td>
+        <td>
+          {% if a.telegram_id in reviewers %}<span class="badge">انتخاب‌شده</span>{% elif reviewers %}<span class="hint">—</span>{% else %}<span class="hint">همه</span>{% endif %}
+          {% if alobot_writes %}<form method="post" action="/access/reviewers/{{ a.telegram_id }}" class="inline"><button class="btn" type="submit">{{ "بردار" if a.telegram_id in reviewers else "انتخاب" }}</button></form>{% endif %}
+        </td>
+        <td>{{ a.created_at | jalali_dt }}</td>
+        <td>{% if alobot_writes %}<form method="post" action="/access/bot-admins/{{ a.telegram_id }}/remove" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="5" class="hint">ادمینی ثبت نشده.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <p class="hint">{% if reviewers %}فقط {{ reviewers | length | fa_number }} ادمین انتخاب‌شده می‌توانند پرداخت‌های کارت‌به‌کارت را در ربات ببینند و تصمیم بگیرند.{% else %}هیچ محدودیتی تنظیم نشده، یعنی <b>همهٔ</b> ادمین‌ها می‌توانند پرداخت‌ها را ببینند و تایید کنند — این پیش‌فرض خود آلوبات است.{% endif %}</p>
+  {% if alobot_writes and reviewers %}<form method="post" action="/access/reviewers/reset" class="inline"><button class="btn" type="submit">بازگشت به «همهٔ ادمین‌ها»</button></form>{% endif %}
+  {% if alobot_writes %}
+  <h3 style="margin-top:12px">ادمین جدید ربات</h3>
+  <form method="post" action="/access/bot-admins" class="filters">
+    <label>شناسهٔ تلگرام <input type="text" name="telegram_id" dir="ltr" inputmode="numeric" required></label>
+    <label>سطح <select name="level">{% for l in bot_levels %}<option value="{{ l }}">{{ bot_level_labels[l] }}</option>{% endfor %}</select></label>
+    <button class="btn" type="submit">افزودن</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</div>
 {% endblock %}

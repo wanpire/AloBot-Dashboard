@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">زمان‌بندی ذخیره شد.</div>{% endif %}
+<div class="card">
+  <h2>کارهای زمان‌بندی‌شدهٔ آلوبات</h2>
+  {% if not alobot_available %}
+    <p class="hint">پایگاه‌دادهٔ آلوبات متصل نیست: {{ problems | join("، ") }}</p>
+  {% else %}
+  <p class="hint">همه به وقت تهران. ساعت پیش‌فرض در کد آلوبات است و تغییرش این‌جا یک ردیف در تنظیمات ربات می‌نویسد.</p>
+  <table>
+    <thead><tr><th>کار</th><th>کلید</th><th>تناوب</th><th>ساعت</th><th>پیش‌فرض</th><th></th></tr></thead>
+    <tbody>{% for job in alobot_jobs %}
+      <tr>
+        <td>{{ job.label }}</td><td dir="ltr" class="hint">{{ job.key }}</td><td>{{ job.cadence_label }}</td>
+        <td>{{ job.time | fa }}{% if job.overridden %} <span class="badge">تغییر داده‌شده</span>{% endif %}</td>
+        <td class="hint">{{ job.default_time | fa }}</td>
+        <td>{% if alobot_writes and operator.role == "ADMIN" %}
+          <form method="post" action="/cron/{{ job.key }}" class="inline">
+            <input type="number" name="hour" value="{{ job.hour }}" min="0" max="23" style="width:5rem">:<input type="number" name="minute" value="{{ job.minute }}" min="0" max="59" style="width:5rem">
+            <button class="btn" type="submit">ذخیره</button>
+          </form>
+        {% endif %}</td>
+      </tr>
+    {% endfor %}</tbody>
+  </table>
+  {% endif %}
+</div>
+<div class="card" style="margin-top:16px">
+  <h2>سوییپ‌های این داشبورد</h2>
+  <p class="hint">این‌ها ساعت ندارند و نباید داشته باشند: هر چرخهٔ حلقه اجرا می‌شوند و آنچه تصمیم می‌گیرد کاری «موعدش رسیده» یا نه، یک آستانه است نه یک ساعت.</p>
+  <table><thead><tr><th>سوییپ</th><th>چه می‌کند</th><th>هر</th></tr></thead>
+  <tbody>{% for s in our_sweeps %}<tr><td dir="ltr">{{ s.name }}</td><td>{{ s.what }}</td><td>{{ s.every_seconds | int | fa_number }} ثانیه</td></tr>{% endfor %}</tbody></table>
+</div>
+{% endblock %}

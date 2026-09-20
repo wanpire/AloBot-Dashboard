@@ -1,16 +1,65 @@
 {% extends "base.html" %}
 {% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
 {% include "_alobot_banner.html" %}
 <div class="grid grid--cards">
-  <div class="card"><h3>پلتفرم‌ها</h3><table>{% for p in platforms %}<tr><td>{{ p.label }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td></tr>{% endfor %}</table></div>
-  <div class="card"><h3>پروتکل‌ها</h3><table>{% for p in protocols %}<tr><td>{{ p.label }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td></tr>{% endfor %}</table></div>
+  <div class="card"><h3>پلتفرم‌ها</h3>
+    <table>{% for p in platforms %}<tr><td>{{ p.label }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td><td>{% if alobot_writes and operator.role == "ADMIN" %}<form method="post" action="/tutorials/platforms/{{ p.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td></tr>{% endfor %}</table>
+    {% if alobot_writes and operator.role == "ADMIN" %}<form method="post" action="/tutorials/platforms" class="filters"><label>عنوان <input type="text" name="label" required></label><label>ترتیب <input type="number" name="sort_order" value="0"></label><button class="btn" type="submit">افزودن</button></form>{% endif %}
+  </div>
+  <div class="card"><h3>پروتکل‌ها</h3>
+    <table>{% for p in protocols %}<tr><td>{{ p.label }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td><td>{% if alobot_writes and operator.role == "ADMIN" %}<form method="post" action="/tutorials/protocols/{{ p.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td></tr>{% endfor %}</table>
+    {% if alobot_writes and operator.role == "ADMIN" %}<form method="post" action="/tutorials/protocols" class="filters"><label>عنوان <input type="text" name="label" required></label><label>ترتیب <input type="number" name="sort_order" value="0"></label><button class="btn" type="submit">افزودن</button></form>{% endif %}
+  </div>
 </div>
+
 <div class="card" style="margin-top:16px"><h3>راهنماها</h3>
-  <table><thead><tr><th>پلتفرم</th><th>پروتکل</th><th>نوع سرویس</th><th>لوکیشن</th><th>متن</th><th>رسانه</th><th>وضعیت</th></tr></thead>
-  <tbody>{% for g in guides %}<tr><td>{{ g.platform }}</td><td>{{ g.protocol }}</td><td>{{ label(labels.category, g.category) }}</td><td>{{ g.location or "—" }}</td><td>{{ g.body_len | fa_number }} نویسه</td><td>{{ g.media_type or "—" }}</td><td>{{ "فعال" if g.is_active else "غیرفعال" }}</td></tr>{% endfor %}</tbody></table>
+  <table><thead><tr><th>پلتفرم</th><th>پروتکل</th><th>نوع سرویس</th><th>لوکیشن</th><th>متن</th><th>وضعیت</th><th></th></tr></thead>
+  <tbody>{% for g in guides %}<tr><td>{{ g.platform }}</td><td>{{ g.protocol }}</td><td>{{ label(labels.category, g.category) }}</td><td>{{ g.location or "—" }}</td><td>{{ g.body_len | fa_number }} نویسه</td><td>{{ "فعال" if g.is_active else "غیرفعال" }}</td>
+    <td>{% if alobot_writes and operator.role == "ADMIN" %}<form method="post" action="/tutorials/guides/{{ g.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+  {% if alobot_writes and operator.role == "ADMIN" %}
+  <h4>نوشتن / جایگزینی راهنما</h4>
+  <p class="hint">قواعد خود آلوبات اجرا می‌شوند: اندروید L2TP ندارد، Cisco فقط برای «عادی» است، و فقط ترکیب «لوکیشن ثابت + L2TP» برای هر لوکیشن جداست.</p>
+  <form method="post" action="/tutorials/guides">
+    <div class="filters">
+      <label>پلتفرم <select name="platform_id">{% for p in platforms %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}</select></label>
+      <label>پروتکل <select name="protocol_id">{% for p in protocols %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}</select></label>
+      <label>نوع سرویس <select name="category">{% for c in categories %}<option value="{{ c }}">{{ category_labels[c] }}</option>{% endfor %}</select></label>
+      <label>لوکیشن <select name="location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}">{{ l.title }}</option>{% endfor %}</select></label>
+    </div>
+    <label>متن (HTML تلگرام) <textarea name="body_html" rows="6" dir="auto" required></textarea></label>
+    <button class="btn btn--primary" type="submit">ذخیره</button>
+  </form>
+  {% endif %}
 </div>
+
 <div class="grid grid--cards" style="margin-top:16px">
-  <div class="card"><h3>لینک‌های دانلود</h3><table>{% for l in links %}<tr><td>{{ l.platform }} / {{ l.protocol }}</td><td dir="ltr"><a class="link" href="{{ l.url }}" rel="noopener">{{ l.url }}</a></td></tr>{% endfor %}</table></div>
-  <div class="card"><h3>پروفایل‌های OpenVPN</h3><table>{% for p in profiles %}<tr><td>{{ p.name }}</td><td>{{ label(labels.category, p.category) if p.category else "همه" }}</td><td>{{ p.location or "—" }}</td><td>{{ p.platform or "همه" }}</td><td>{{ p.file_type or "متن" }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td></tr>{% endfor %}</table></div>
+  <div class="card"><h3>لینک‌های دانلود</h3>
+    <table>{% for l in links %}<tr><td>{{ l.platform }} / {{ l.protocol }}</td><td dir="ltr"><a class="link" href="{{ l.url }}" rel="noopener">{{ l.url }}</a></td></tr>{% endfor %}</table>
+    {% if alobot_writes and operator.role == "ADMIN" %}
+    <form method="post" action="/tutorials/links" class="filters">
+      <label>پلتفرم <select name="platform_id">{% for p in platforms %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}</select></label>
+      <label>پروتکل <select name="protocol_id">{% for p in protocols %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}</select></label>
+      <label>لینک <input type="url" name="url" dir="ltr" required></label>
+      <button class="btn" type="submit">ثبت</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="card"><h3>پروفایل‌های OpenVPN</h3>
+    <table>{% for p in profiles %}<tr><td>{{ p.name }}</td><td>{{ label(labels.category, p.category) if p.category else "همه" }}</td><td>{{ p.file_type or "متن" }}</td><td>{{ "فعال" if p.is_active else "غیرفعال" }}</td>
+      <td>{% if alobot_writes and operator.role == "ADMIN" %}<form method="post" action="/tutorials/profiles/{{ p.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td></tr>{% endfor %}</table>
+    {% if alobot_writes and operator.role == "ADMIN" %}
+    <form method="post" action="/tutorials/profiles">
+      <label>نام <input type="text" name="name" required></label>
+      <div class="filters">
+        <label>نوع سرویس <select name="category"><option value="">همه</option>{% for c in categories %}<option value="{{ c }}">{{ category_labels[c] }}</option>{% endfor %}</select></label>
+        <label>لوکیشن <select name="location_id"><option value="">—</option>{% for l in locations %}<option value="{{ l.id }}">{{ l.title }}</option>{% endfor %}</select></label>
+        <label>پلتفرم <select name="platform_id"><option value="">همه</option>{% for p in platforms %}<option value="{{ p.id }}">{{ p.label }}</option>{% endfor %}</select></label>
+      </div>
+      <label>متن پروفایل <textarea name="text_body" rows="5" dir="ltr" required></textarea><span class="hint">فایل .ovpn فقط از داخل خود ربات آپلود می‌شود؛ از این‌جا پروفایل متنی ثبت می‌شود.</span></label>
+      <button class="btn btn--primary" type="submit">افزودن</button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

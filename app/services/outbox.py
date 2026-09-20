@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.models import BotNotification
+from app.services import pace
 from app.services.telegram import TelegramApi
 
 log = get_logger(__name__)
@@ -40,6 +41,8 @@ async def flush(session: AsyncSession, api: TelegramApi | None, now: dt.datetime
     if api is None:
         return {"skipped": "no_bot_token"}
     now = now or dt.datetime.now(dt.timezone.utc)
+    if pace.is_paused(now):
+        return {"skipped": "paced", "sent": 0, "failed": 0, "dead": 0, "rate_limited": 0}
     # Claim a batch under a lease: `AS MATERIALIZED` makes LIMIT a real cap,
     # SKIP LOCKED keeps two sweeps off the same row.
     rows = (
@@ -68,6 +71,7 @@ async def flush(session: AsyncSession, api: TelegramApi | None, now: dt.datetime
             await session.execute(text("UPDATE bot_notifications SET status = 'SENT', sent_at = :now, attempt_count = attempt_count + 1, last_error = NULL WHERE id = :id"), {"now": now, "id": row.id})
             counts["sent"] += 1
         elif result.retry_after:
+            pace.note_rate_limit(result.retry_after, now)
             await session.execute(text("UPDATE bot_notifications SET next_attempt_at = :at WHERE id = :id"), {"at": now + dt.timedelta(seconds=int(result.retry_after)), "id": row.id})
             counts["rate_limited"] += 1
             log.warning("notify.rate_limited", retry_after=result.retry_after)

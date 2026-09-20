@@ -30,7 +30,9 @@ def test_only_local_and_test_relax_guards(env, relaxed):
 
 
 def test_alobot_writes_default_off(monkeypatch):
-    monkeypatch.delenv("ALOBOT_DATABASE_URL", raising=False)
+    for name in ("ALOBOT_DATABASE_URL", "ALOBOT_WRITE_DATABASE_URL", "ALOBOT_DB_WRITES_ENABLED"):
+        monkeypatch.delenv(name, raising=False)
     s = Settings(_env_file=None, env_name="local", database_url="postgresql+asyncpg://x", session_secret="a" * 32)
     assert s.alobot_db_writes_enabled is False
     assert s.alobot_database_url == ""
+    assert s.alobot_write_database_url == "", "production must have no write engine at all"

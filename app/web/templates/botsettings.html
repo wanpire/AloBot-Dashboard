@@ -1,15 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
+{% if notice == "saved" %}<div class="flash flash--ok">تنظیمات ربات ذخیره شد.</div>{% endif %}
 {% include "_alobot_banner.html" %}
 <div class="card">
-  <table>
-    <thead><tr><th>تنظیم</th><th>کلید</th><th>مقدار</th></tr></thead>
-    <tbody>{% for key, name, value in known %}<tr><td>{{ name }}</td><td dir="ltr" class="hint">{{ key }}</td><td dir="ltr">{% if value is none %}<span class="hint">تنظیم نشده (پیش‌فرض ربات)</span>{% else %}{{ value }}{% endif %}</td></tr>{% endfor %}</tbody>
-  </table>
+  <form method="post" action="/botsettings">
+    {% for spec in specs %}{% set value = values[spec.key] %}
+    <label>{{ spec.label }}
+      {% if spec.kind == "bool" %}
+        <input type="checkbox" name="{{ spec.key }}" value="1" {% if value %}checked{% endif %} {% if not alobot_writes or operator.role != "ADMIN" %}disabled{% endif %}>
+      {% elif spec.kind == "int" %}
+        <input type="number" name="{{ spec.key }}" value="{{ value if value is not none else '' }}" min="{{ spec.min }}" max="{{ spec.max }}" {% if not alobot_writes or operator.role != "ADMIN" %}disabled{% endif %}>
+      {% else %}
+        <input type="text" name="{{ spec.key }}" value="{{ value if value is not none else '' }}" {% if spec.kind in ("card", "chat_id") %}dir="ltr" inputmode="numeric"{% endif %} {% if not alobot_writes or operator.role != "ADMIN" %}disabled{% endif %}>
+      {% endif %}
+      <span class="hint">{{ spec.hint }} <span dir="ltr">({{ spec.key }})</span></span>
+    </label>
+    {% endfor %}
+    {% if alobot_writes and operator.role == "ADMIN" %}<button class="btn btn--primary" type="submit">ذخیره</button>{% endif %}
+  </form>
 </div>
-{% if other %}
-<div class="card" style="margin-top:16px"><h3>کلیدهای دیگر</h3>
-  <table>{% for key, value in other %}<tr><td dir="ltr">{{ key }}</td><td dir="ltr">{{ value }}</td></tr>{% endfor %}</table>
+{% if read_only %}
+<div class="card" style="margin-top:16px"><h3>تاپیک‌های گروه گزارش (فقط‌خواندنی)</h3>
+  <p class="hint">ربات این تاپیک‌ها را خودش در گروه فوروم می‌سازد و شناسه‌شان را این‌جا می‌نویسد. شمارهٔ دستی، گزارش‌ها را به جایی نمی‌رساند — از پنل خود ربات «بروزرسانی/ساخت تاپیک‌ها» را بزنید.</p>
+  <table>{% for key, value in read_only.items() %}<tr><td dir="ltr">{{ key }}</td><td dir="ltr">{{ value }}</td></tr>{% endfor %}</table>
 </div>
 {% endif %}
 {% endblock %}

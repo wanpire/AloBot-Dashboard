@@ -102,7 +102,10 @@ async def test_resellers_catalog_discounts_tutorials_and_bot_settings_render(see
     for name, r in pages.items():
         assert r.status_code == 200, name
     assert "۱٬۲۵۰٬۰۰۰" in pages["resellers"].text
-    assert "پرایم ۱ ماهه ۱ کاربر" in pages["catalog"].text
+    # The catalog is a plan matrix now, not a list of titles: category
+    # headings, the IBSng group each slot is bound to, and its price.
+    assert "ماتریس پلن" in pages["catalog"].text and "پرایم" in pages["catalog"].text
+    assert "Prime-1M-1U" in pages["catalog"].text
     assert "WELCOME10" in pages["discounts"].text
     assert "اندروید" in pages["tutorials"].text and "OpenVPN" in pages["tutorials"].text
 

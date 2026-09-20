@@ -1,9 +1,14 @@
-"""Two engines, deliberately separate.
+"""Three engines, deliberately separate.
 
 `engine` is this project's own database and is always present.
 
 `alobot_engine` is AloBot's database through a read-only role, and it
-is optional: `None` when `ALOBOT_DATABASE_URL` is blank. Nothing in this
+is optional: `None` when `ALOBOT_DATABASE_URL` is blank.
+
+`alobot_write_engine` is the same database through a role scoped to the
+few tables the dashboard may edit, and is `None` unless
+`ALOBOT_WRITE_DATABASE_URL` is set - which it is not in production until
+the integration phase. Nothing in this
 project may write through it until the final integration phase, and
 even then only the tables that phase enables. Keeping the two engines
 apart (rather than one connection with two schemas) is what makes
@@ -40,6 +45,20 @@ alobot_engine: AsyncEngine | None = (
     if settings.alobot_database_url
     else None
 )
+# The write engine exists only when a write URL is configured. Small pool:
+# edits are rare and an operator is one person.
+alobot_write_engine: AsyncEngine | None = (
+    create_async_engine(
+        settings.alobot_write_database_url,
+        pool_pre_ping=True,
+        pool_size=2,
+        max_overflow=3,
+        pool_timeout=5,
+    )
+    if settings.alobot_write_database_url
+    else None
+)
+
 alobot_session_maker = (
     async_sessionmaker(alobot_engine, class_=AsyncSession, expire_on_commit=False)
     if alobot_engine is not None

@@ -362,5 +362,44 @@ because AloBot creates the payment row only when the receipt photo arrives, so
 "paid but no receipt" cannot occur; and the receipt image itself is shown in
 Phase 7, since only AloBot's bot token can fetch that file.
 
-Next: Phase 5 in `docs/PLAN.md` - write screens on AloBot's tables, against
-the copy.
+Phase 5 (write screens on AloBot's tables, against the copy) - done:
+
+- **Writes are bolted twice.** `app/alobot/writes/` refuses unless there is
+  BOTH a write-capable connection (`ALOBOT_WRITE_DATABASE_URL`, a role
+  granted INSERT/UPDATE/DELETE on exactly ten tables: services,
+  service_locations, app_config, discount_codes, tutorial_*, download_links,
+  openvpn_profiles, admin_users) AND `ALOBOT_DB_WRITES_ENABLED`. Production
+  has neither until Phase 7, so every editor renders read-only and says so.
+  A test proves the role cannot touch payments, vpn_users, bot_users,
+  resellers or groups even when writes are on.
+- **The edit and its audit row are in different databases, and this is not
+  hidden.** `writes.edit()` commits the AloBot change, then writes the audit
+  row here; a failure to record is logged as `audit.unrecorded` rather than
+  lost. Nothing claims the two are atomic.
+- **Every rule is AloBot's own, pinned against `vendor/alobot` by tests:**
+  plan dimensions and the generated plan title; the trial group is not
+  sellable; a location with bound plans is not deletable; `category_enabled:*`
+  with its exact word; the discount code's upper-casing and "all categories
+  means NULL"; the three tutorial validity rules (Android has no L2TP, Cisco
+  is «عادی»-only, fixed+L2TP is per-location); the scheduler's eleven jobs
+  and their default times.
+- **Each AloBot switch carries its own vocabulary.** `auto_approve_enabled`
+  and `mandatory_channel_enabled` are ON only for the exact string "true";
+  `reminder_enabled` and `trial_limit_enabled` are OFF only for the exact
+  string "false". A form with one convention would silently mean the opposite
+  on half of them; `app/alobot/writes/botsettings.py` encodes each reader.
+- Bulk pricing builds its preview and its apply from ONE SQL expression,
+  rounds to whole Toman, and refuses the whole change if any sellable plan
+  would reach zero.
+- Ours, not AloBot's: broadcast (audience snapshot taken at creation,
+  client-minted batch id so a double submit is one broadcast, no retry, a
+  429 pauses the whole send through `app/services/pace.py` which the outbox
+  shares) and the bot text/keyboard editors, stored in this project's own
+  `settings` and read by AloBot only in Phase 7 - their defaults are AloBot's
+  real strings, pinned by a test.
+- Discount expiry and per-user limit are **written down, not applied**:
+  `docs/alobot-migrations/0001_*.md` is the Phase 7 change, and a test
+  asserts the copy's schema was not altered.
+
+Next: Phase 6 in `docs/PLAN.md` - hardening, the browser suite, the runbook,
+and a staging deployment beside AloBot (still isolated).

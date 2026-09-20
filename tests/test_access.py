@@ -3,6 +3,17 @@
 import asyncio
 
 import pytest
+import pytest_asyncio
+
+from app.alobot.link import link
+from app.alobot.seed import seed_alobot_copy
+from tests.conftest import ALOBOT_ADMIN_URL
+
+
+@pytest_asyncio.fixture
+async def seeded_alobot():
+    await seed_alobot_copy(ALOBOT_ADMIN_URL, customers=5, seed=3)
+    await link.connect()
 from sqlalchemy import select
 
 from app.db.session import async_session_maker
@@ -99,3 +110,43 @@ async def test_refusal_from_the_page_is_the_servers_sentence():
     async with c:
         r = await c.post(f"/access/{me.id}/active", data={"active": "0"}, headers={"Origin": "http://test"})
     assert r.status_code == 400 and "خودتان" in r.text
+
+
+# ── AloBot's bot admins, from the same page ────────────────────────────────
+
+
+async def test_the_reviewer_reset_route_is_not_shadowed_by_the_toggle_route():
+    """`/access/reviewers/reset` must be declared before
+    `/access/reviewers/{telegram_id}`, or "reset" is parsed as a telegram id
+    and the button silently 422s."""
+    c = await logged_in("ADMIN")
+    async with c:
+        r = await c.post("/access/reviewers/reset", headers={"Origin": "http://test"})
+    assert r.status_code != 422, "the reset route is shadowed by the parameterised one"
+    assert r.status_code == 303
+
+
+async def test_bot_admins_can_be_managed_from_the_access_page(seeded_alobot):
+    from sqlalchemy import text
+
+    from tests.alobot_seed import write_engine
+
+    c = await logged_in("ADMIN")
+    async with c:
+        added = await c.post("/access/bot-admins", data={"telegram_id": "555123456", "level": "support"}, headers={"Origin": "http://test"})
+        assert added.status_code == 303, added.text
+        toggled = await c.post("/access/reviewers/555123456", headers={"Origin": "http://test"})
+        assert toggled.status_code == 303
+        page = await c.get("/access")
+    async with write_engine.connect() as conn:
+        level = (await conn.execute(text("SELECT level FROM admin_users WHERE telegram_id=555123456"))).scalar_one()
+        reviewers = (await conn.execute(text("SELECT value FROM app_config WHERE key='payment_review_admin_ids'"))).scalar_one()
+    assert level == "support" and reviewers == "555123456"
+    assert "ادمین‌های ربات آلوبات" in page.text
+
+
+async def test_a_non_admin_telegram_id_cannot_be_made_a_reviewer(seeded_alobot):
+    c = await logged_in("ADMIN")
+    async with c:
+        r = await c.post("/access/reviewers/424242", headers={"Origin": "http://test"})
+    assert r.status_code == 400 and "ادمین" in r.text
