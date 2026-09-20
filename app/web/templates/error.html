@@ -1,4 +1,26 @@
-{% extends "base.html" %}
-{% block heading %}{{ title }}{% endblock %}
-{% block bare %}<div class="card card--login"><h1>{{ title }}</h1><p>{{ detail }}</p><a class="link" href="/">بازگشت</a></div>{% endblock %}
-{% block content %}<div class="card"><h1>{{ title }}</h1><p>{{ detail }}</p><a class="link" href="/">بازگشت به داشبورد</a></div>{% endblock %}
+{#
+  Rendered for a 403 (see app/main.py). It has two faces, as it always has:
+  centred on its own when nobody is signed in, inside the panel when somebody
+  is - so an operator who hits a section their role may not open keeps the
+  sidebar and can go somewhere else.
+#}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block page_heading %}{{ title }}{% endblock %}
+
+{% block bare %}
+{% call ui.card() %}
+  <h1 class="card-title">{{ title }}</h1>
+  <p>{{ detail }}</p>
+  {{ ui.btn("بازگشت", href="/") }}
+{% endcall %}
+{% endblock %}
+
+{% block content %}
+{% call ui.card() %}
+  <h1 class="card-title">{{ title }}</h1>
+  <p>{{ detail }}</p>
+  {{ ui.btn("بازگشت به داشبورد", href="/") }}
+{% endcall %}
+{% endblock %}

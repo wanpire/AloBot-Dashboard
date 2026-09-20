@@ -130,7 +130,7 @@ def test_tooltips_are_reinstated_after_an_htmx_swap():
 # The screens migrated to the Tabler shell so far. Each phase adds to this
 # list deliberately, so a screen can never drift onto the new shell unnoticed
 # and half-converted.
-MIGRATED = {"payments.html"}
+MIGRATED = {"payments.html", "login.html", "password.html", "error.html"}
 
 
 def test_only_the_screens_this_track_has_migrated_are_on_the_new_shell():

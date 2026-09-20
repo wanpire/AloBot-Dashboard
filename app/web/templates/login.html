@@ -1,17 +1,21 @@
-{% extends "base.html" %}
-{% block title %}ورود · داشبورد آلو{% endblock %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
+{% block page_title %}ورود{% endblock %}
 {% block bare %}
-<div class="card card--login">
-  <h1>ورود به داشبورد</h1>
-  {% if notice %}<div class="flash">{{ notice }}</div>{% endif %}
-  {% if error %}<div class="flash flash--err" data-testid="login-error">{{ error }}</div>{% endif %}
+{% call ui.card() %}
+  <h1 class="card-title text-center mb-4">ورود به داشبورد</h1>
+  {% if notice %}{{ ui.toast(notice, tone="info", dismissible=False) }}{% endif %}
+  {% if error %}{{ ui.form_errors(error, data_testid="login-error") }}{% endif %}
   <form method="post" action="/login">
-    <label>ایمیل <input type="email" name="email" value="{{ email or '' }}" autocomplete="username" required autofocus data-testid="login-email"></label>
-    <label>رمز عبور <input type="password" name="password" autocomplete="current-password" required data-testid="login-password"></label>
+    {{ ui.field("email", "ایمیل", value=email or "", type="email", required=True,
+                attrs={"autocomplete": "username", "autofocus": "autofocus"}, data_testid="login-email") }}
+    {{ ui.field("password", "رمز عبور", type="password", required=True,
+                attrs={"autocomplete": "current-password"}, data_testid="login-password") }}
     {% if needs_totp %}
-    <label>کد دومرحله‌ای <input type="text" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" required></label>
+    {{ ui.field("totp", "کد دومرحله‌ای", required=True,
+                attrs={"inputmode": "numeric", "autocomplete": "one-time-code", "pattern": "[0-9 ]*"}) }}
     {% endif %}
-    <button class="btn btn--primary" type="submit" data-testid="login-submit">ورود</button>
+    {{ ui.btn("ورود", tone="primary", type="submit", class_="w-100", data_testid="login-submit") }}
   </form>
-</div>
+{% endcall %}
 {% endblock %}

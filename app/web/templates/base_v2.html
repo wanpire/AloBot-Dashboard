@@ -35,6 +35,21 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body>
+{% if not operator %}
+{#
+  Signed out: no sidebar, no topbar, nothing to navigate to. The login and
+  error screens render here, centred, exactly as the old shell's `bare` block
+  did.
+#}
+<div class="page page-center">
+  <div class="container container-tight py-4" data-testid="page-content">
+    <div class="text-center mb-4"><span class="navbar-brand navbar-brand-autodark h1">داشبورد آلو</span></div>
+    {# No flash here: a signed-out screen shows its own message, next to the
+       field it belongs to, and rendering it twice is worse than once. #}
+    {% block bare %}{% endblock %}
+  </div>
+</div>
+{% else %}
 <div class="page">
 
   {# ── Sidebar: static from md up, a drawer below it ─────────────────── #}
@@ -161,6 +176,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 <script src="/static/vendor/tabler/js/tabler.min.js" defer></script>
 <script src="/static/htmx.min.js" defer></script>
