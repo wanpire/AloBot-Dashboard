@@ -1,7 +1,14 @@
-.PHONY: up down restart logs migrate revision test link-alobot check-alobot-pin copy-alobot-db seed-alobot-copy
+.PHONY: up down restart logs migrate revision test check build link-alobot check-alobot-pin copy-alobot-db seed-alobot-copy loadtest
+
+# The running version is stamped from the git commit at build time, so the
+# badge in the panel and /health name the build this host is actually running.
+export APP_VERSION := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 
 up:
 	docker compose up -d --build
+
+build:
+	docker compose build
 
 down:
 	docker compose down
@@ -21,6 +28,15 @@ revision:
 # Tests need a throwaway Postgres (see CLAUDE.md > Testing).
 test:
 	python -m pytest -v
+
+# Everything that must pass before deploying: migrations up/down/up, the
+# suite, and the production image built and inspected.
+check:
+	bash scripts/check.sh
+
+# Fire synthetic bank SMS at a DEPLOYED instance (staging only).
+loadtest:
+	python scripts/loadtest_ingest.py --url $(URL) --device $(DEVICE) --token $(TOKEN) --yes-this-writes-rows
 
 # Point vendor/alobot at the sibling AloBot checkout (read-only reference).
 link-alobot:

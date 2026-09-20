@@ -1,6 +1,12 @@
 services:
   dashboard:
-    build: .
+    build:
+      context: .
+      args:
+        # `make build` / `make up` pass the git commit; a bare
+        # `docker compose up` leaves the version reading "dev", which is
+        # honest rather than wrong.
+        APP_VERSION: ${APP_VERSION:-dev}
     container_name: alobot-dashboard
     restart: unless-stopped
     env_file:

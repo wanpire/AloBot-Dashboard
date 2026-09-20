@@ -24,7 +24,21 @@ COPY scripts ./scripts
 COPY alembic ./alembic
 COPY alembic.ini ./
 
+# Runtime dependencies only - `.`, never `.[dev]`. pytest, playwright and the
+# rest of the test tooling have no business in a production image, and the
+# tests themselves are not copied in either.
 RUN pip install --no-cache-dir .
+
+# The running version, stamped at build time from the git commit. The badge in
+# the panel's sidebar and /health both read it, so "which build is this host
+# running" is answerable without ssh. See the `build` target in the Makefile.
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
+# Not root. The process only reads its code and writes the heartbeat file in
+# /tmp, so it needs to own neither.
+RUN useradd --system --create-home --uid 10001 dashboard
+USER dashboard
 
 EXPOSE 8000
 
