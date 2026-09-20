@@ -401,5 +401,31 @@ Phase 5 (write screens on AloBot's tables, against the copy) - done:
   `docs/alobot-migrations/0001_*.md` is the Phase 7 change, and a test
   asserts the copy's schema was not altered.
 
-Next: Phase 6 in `docs/PLAN.md` - hardening, the browser suite, the runbook,
-and a staging deployment beside AloBot (still isolated).
+Phase 6 (hardening, demo, staging) - done except the staging deployment:
+
+- `tests/test_browser.py` drives Chromium against uvicorn running in the
+  test's own event loop, and `tests/test_control_walk.py` walks every
+  section as every role. Between them they caught three real defects: write
+  forms drawn for roles that may not use them, the review queue hiding its
+  own candidate credits behind a disclosure, and a credit that had already
+  settled one claim still being offered to the next.
+- `tests/test_load_ingest.py` measures ingest under a backlog flush, a
+  steady stream, duplicates and a flood. A saturated pool used to answer
+  500; it now sheds as 503 with Retry-After. Pool size turned out not to be
+  the lever - a bigger pool was slower, because the cost is the two commits
+  per message - so the pools are settings defaulted to measured values, and
+  `tests/test_pool_budget.py` holds this project to a 20-connection slice of
+  what AloBot's Postgres leaves unclaimed, read from AloBot's own files.
+- The image installs runtime dependencies only, carries no tests, runs as an
+  unprivileged user, and is stamped with the git commit that built it.
+  `scripts/check.sh` is the one gate before deploying; `make check` runs it.
+- `RUNBOOK.md` and `docs/DEMO.md` are the operator documents, and
+  `tests/test_runbook.py` holds every screen, script, target and setting
+  they name against the code. `scripts/demo_setup.py` prepares a demo and
+  prints the bank SMS that settles each open payment; the walkthrough was
+  run end to end before it was written.
+
+Next: the staging deployment on the production host (Phase 6 task 5) needs
+the owner's explicit go-ahead - it is the first thing in this project that
+touches that host, and it wants a copy of real customer data. After that,
+Phase 7 is the only work that touches AloBot, task by task.

@@ -99,8 +99,8 @@ async def main() -> int:
         stream = await asyncio.gather(*pending)
         report(f"{args.rate}/s for {args.seconds}s", stream, time.perf_counter() - started)
 
-    print("\nNow check the panel: پیامک‌ها should show the synthetic messages, and")
-    print("the transactions screen should show them as unmatched credits to decline.")
+    print("\nNow check the panel: تراکنش‌های بانکی should list the synthetic messages")
+    print("as unmatched credits. Decline them so they never meet a real claim.")
     return 0
 
 

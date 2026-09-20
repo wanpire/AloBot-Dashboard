@@ -286,22 +286,66 @@ so the reset button 422'd; fixed and pinned by a test.
 
 ## Phase 6 — Hardening, demo, staging deployment beside AloBot (still isolated)
 
-1. **[own] Browser end-to-end suite** (Playwright or the Chrome MCP) that opens
-   every section, presses every write control as READ_ONLY and REVIEWER and
-   expects refusal, and walks the payment scenarios of Phase 4.
-2. **[own] Load test of ingest** (burst and sustained) with pool sizing
-   confirmed against AloBot's connection ceiling.
-3. **[own] Production image:** no dev tooling, `APP_VERSION` from the git
-   commit at build time, CI-style check script.
-4. **[own] RUNBOOK.md:** first-time setup, creating the first operator, relay
-   phone setup (app URL, device token), rotating a device token, restore drill,
-   reading the audit log, what to do when the SMS phone dies (continuity mode).
-5. **[copy] Staging deployment on the production host** in its own compose
-   project, pointed at a **copy** of AloBot's database restored from the
-   nightly backup, behind TLS on its own hostname/port. AloBot's containers,
-   network and database are not touched; the AloBot copy is refreshed by a
-   script, not a live link.
-6. **[own] Demo script** the owner can follow end to end on staging.
+1. **[own] Browser end-to-end suite** — ✅ done. `tests/test_browser.py` runs
+   uvicorn inside the test's own event loop and drives Chromium against it, so
+   the page and the test share one database. It logs in through the form,
+   walks every section watching for console errors and broken assets, checks
+   the shell is RTL with Persian digits, has a reviewer approve a claim with
+   its credit, and presses a destructive control without its confirmation.
+   `tests/test_control_walk.py` does the role half: every section opened as
+   each role, no control drawn that the role may not use, and every
+   ADMIN-visible control pressed as the other roles.
+
+   Found and fixed by writing them: the bot-text and keyboard screens drew
+   their form for every role; the review queue hid the candidate credits and
+   the decision buttons behind a disclosure on the one tab that exists for
+   deciding; a credit that had already settled a claim was still offered to
+   the next one.
+
+2. **[own] Load test of ingest** — ✅ done. `tests/test_load_ingest.py`
+   measures a backlog flush, a steady stream, a duplicate burst, the device
+   limit and a flood past capacity; `scripts/loadtest_ingest.py` runs the same
+   shapes against a deployment and refuses without an explicit acknowledgement
+   that it writes rows.
+
+   Two findings. A saturated pool surfaced as a 500, which tells the relay
+   phone that something broke; it now sheds as 503 with Retry-After and one
+   `ingest.saturated` warning. And pool sizing is not the lever it looked
+   like: raising it made a 200-message burst *slower* (72/s to 47/s), because
+   the cost is the two commits each message makes. The pools are settings now,
+   defaulted to the measured values. `tests/test_pool_budget.py` reads
+   AloBot's own compose and engine to confirm its 250-connection ceiling and
+   150-connection pool, and holds this project to a 20-connection slice.
+
+3. **[own] Production image** — ✅ done. Runtime dependencies only, no tests
+   copied in, runs as an unprivileged user, `APP_VERSION` stamped from the git
+   commit at build time and visible in the sidebar and `/health`.
+   `scripts/check.sh` is the gate: the AloBot pin, compilation, migrations up
+   and down and up, one migration head, the whole suite, then the image built
+   and inspected for those promises. `tests/test_image.py` holds the same
+   promises from the Dockerfile so they are checked without Docker too.
+
+4. **[own] RUNBOOK.md** — ✅ done. Setup, roles, the restore drill, pointing at
+   a copy of AloBot's database, the relay phone (including every status code
+   the phone can get and what it should do about each), rotating and revoking
+   a token, the review queues, continuity mode when the phone dies, reading
+   the audit log and events, health and its failure modes, deploying, and what
+   needs the owner's go-ahead. `tests/test_runbook.py` holds every screen
+   name, script, make target and setting it mentions against the code, for
+   both this and the demo script.
+
+5. **[copy] Staging deployment on the production host** — ⏸ **waiting for the
+   owner's go-ahead.** This is the only task in the phase that touches the
+   production host and a copy of real customer data, so it is not done
+   unilaterally. What it involves is written up in the handoff at the end of
+   this phase.
+
+6. **[own] Demo script** — ✅ done. `docs/DEMO.md` is a twenty-minute
+   walkthrough and `scripts/demo_setup.py` prepares the data and prints the
+   exact bank SMS that settles each open payment. Both were run end to end
+   against the AloBot copy before being written down: a payment auto-verified
+   with a 90-second delta, and a credit one rial off left the payment for a
+   human and the money as an unmatched credit.
 
 Exit criteria: owner sign-off on the staging demo.
 
