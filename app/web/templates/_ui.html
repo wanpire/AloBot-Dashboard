@@ -308,6 +308,28 @@
 {%- endmacro -%}
 
 {#
+  A filter bar: the fields come from the caller, the submit button is here so
+  every screen's says the same thing in the same place.
+#}
+{%- macro filter_form(action, submit_label="اعمال", method="get", attrs=None) -%}
+<form method="{{ method }}" action="{{ action }}"{{ _attrs(attrs, kwargs, "row g-2 align-items-end") }}>
+  {{ caller() }}
+  <div class="col-12 col-md-auto mb-3">{{ btn(submit_label, type="submit") }}</div>
+</form>
+{%- endmacro -%}
+
+{#
+  The row count and the page links, with exactly the arithmetic and the
+  wording `_pager.html` has always used - the screens still on the old base
+  include that file, and the two must not drift apart while both exist.
+#}
+{%- macro pager(total, page, page_size, query_string, attrs=None) -%}
+  {%- set pages = ((total - 1) // page_size) + 1 if total else 1 -%}
+  <div{{ _attrs(attrs, kwargs, "text-secondary mt-2") }}>{{ total | fa_number }} ردیف · صفحهٔ {{ page | fa_number }} از {{ pages | fa_number }}</div>
+  {{ pagination(page, pages, "?" ~ query_string ~ "page={page}") }}
+{%- endmacro -%}
+
+{#
   Pages are numbered from 1. `url_for_page` is a caller-supplied string with
   `{page}` in it, so this macro never builds a query string of its own.
 #}

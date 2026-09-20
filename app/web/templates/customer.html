@@ -1,46 +1,76 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
 {% if missing %}
-<div class="card"><p>هیچ داده‌ای برای شناسهٔ {{ telegram_id | string | fa }} نیست.</p></div>
+{% call ui.card() %}<p>هیچ داده‌ای برای شناسهٔ {{ telegram_id | string | fa }} نیست.</p>{% endcall %}
 {% else %}
-<div class="card">
-  <h2>مشتری {{ telegram_id | string | fa }}</h2>
+
+{% call ui.card("مشتری " ~ (telegram_id | string | fa)) %}
   <p>
-    {% if user %}نام کاربری: <span dir="ltr">{{ ("@" ~ user.username) if user.username else "—" }}</span> · اولین بازدید: {{ user.first_seen_at | jalali_dt }} · {% if user.is_blocked %}<span class="badge">مسدود</span>{% else %}فعال{% endif %}{% else %}<span class="hint">در جدول کاربران ربات نیست (فقط سابقهٔ پرداخت/اکانت دارد).</span>{% endif %}
-    {% if reseller %} · <span class="badge">نماینده</span> موجودی {{ reseller.balance | toman_amount }}، پورسانت {{ reseller.commission_percent | int | fa_number }}٪{% endif %}
+    {% if user %}نام کاربری: <span dir="ltr">{{ ("@" ~ user.username) if user.username else "—" }}</span> · اولین بازدید: {{ user.first_seen_at | jalali_dt }} · {% if user.is_blocked %}{{ ui.state_badge("", label="مسدود") }}{% else %}فعال{% endif %}{% else %}<span class="text-secondary">در جدول کاربران ربات نیست (فقط سابقهٔ پرداخت/اکانت دارد).</span>{% endif %}
+    {% if reseller %} · {{ ui.state_badge("", label="نماینده") }} موجودی {{ reseller.balance | toman_amount }}، پورسانت {{ reseller.commission_percent | int | fa_number }}٪{% endif %}
   </p>
-</div>
+{% endcall %}
+
 {% if operator.role == "ADMIN" %}
-<div class="card" style="margin-top:16px">
-  <h3>دسترسی به ربات</h3>
+<div class="mt-3">
+{% call ui.card("دسترسی به ربات") %}
   {% if exempt %}
-  <p class="hint">این شناسه {{ exempt }} است و آلوبات این افراد را از مسدودسازی مستثنا می‌کند؛ مسدود کردنش هیچ اثری نمی‌داشت، پس دکمه‌ای هم نیست.</p>
+  <p class="text-secondary">این شناسه {{ exempt }} است و آلوبات این افراد را از مسدودسازی مستثنا می‌کند؛ مسدود کردنش هیچ اثری نمی‌داشت، پس دکمه‌ای هم نیست.</p>
   {% else %}
-  <p class="hint">
+  <p class="text-secondary">
     مسدودسازی فقط درِ ربات را می‌بندد: کاربر پیام «دسترسی شما مسدود شده» می‌گیرد و هیچ دکمه‌ای برایش کار نمی‌کند.
     <b>سرویس فعالش قطع نمی‌شود</b> و تا تاریخ انقضا کار می‌کند؛ این پنل هرگز با IBSng کار نمی‌کند.
   </p>
   {% if user and user.is_blocked %}
-  <form method="post" action="/customers/{{ telegram_id }}/unblock" class="inline"><button class="btn" type="submit">رفع مسدودی</button></form>
+  <form method="post" action="/customers/{{ telegram_id }}/unblock" class="d-inline">{{ ui.btn("رفع مسدودی", type="submit") }}</form>
   {% else %}
-  <form method="post" action="/customers/{{ telegram_id }}/block" class="inline"><button class="btn" type="submit">مسدود کردن در ربات</button></form>
+  <form method="post" action="/customers/{{ telegram_id }}/block" class="d-inline">{{ ui.btn("مسدود کردن در ربات", type="submit") }}</form>
   {% endif %}
   {% endif %}
+{% endcall %}
 </div>
 {% endif %}
-<div class="card" style="margin-top:16px">
-  <h3>اکانت‌ها</h3>
-  <table>
-    <thead><tr><th>نام کاربری IBSng</th><th>گروه</th><th>سرویس</th><th>نوع</th><th>انقضا</th><th>ساخت</th></tr></thead>
-    <tbody>{% for a in accounts %}<tr><td dir="ltr">{{ a.ibsng_username }}</td><td dir="ltr">{{ a.ibsng_group }}</td><td>{{ a.service or "—" }}</td><td>{% if a.is_trial %}تست{% else %}{{ label(labels.category, a.category) }}{% endif %}</td><td>{% if a.expires_at %}{{ a.expires_at | jalali_dt }}{% else %}<span class="hint">نامشخص</span>{% endif %}</td><td>{{ a.created_at | jalali_dt }}</td></tr>{% else %}<tr><td colspan="6" class="hint">—</td></tr>{% endfor %}</tbody>
-  </table>
+
+<div class="mt-3">
+{% call ui.card("اکانت‌ها") %}
+  {% if accounts %}
+  {% call ui.table(["نام کاربری IBSng", "گروه", "سرویس", "نوع", "انقضا", "ساخت"]) %}
+    {% for a in accounts %}
+    {% call ui.row() %}
+      {% call ui.cell("نام کاربری IBSng") %}<span dir="ltr">{{ a.ibsng_username }}</span>{% endcall %}
+      {% call ui.cell("گروه") %}<span dir="ltr">{{ a.ibsng_group }}</span>{% endcall %}
+      {% call ui.cell("سرویس") %}{{ a.service or "—" }}{% endcall %}
+      {% call ui.cell("نوع") %}{% if a.is_trial %}تست{% else %}{{ label(labels.category, a.category) }}{% endif %}{% endcall %}
+      {% call ui.cell("انقضا") %}{% if a.expires_at %}{{ a.expires_at | jalali_dt }}{% else %}<span class="text-secondary">نامشخص</span>{% endif %}{% endcall %}
+      {% call ui.cell("ساخت") %}{{ a.created_at | jalali_dt }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("—") }}{% endif %}
+{% endcall %}
 </div>
-<div class="card" style="margin-top:16px">
-  <h3>پرداخت‌ها</h3>
-  <table>
-    <thead><tr><th>فاکتور</th><th>نوع</th><th>روش</th><th>وضعیت</th><th>مبلغ</th><th>سرویس</th><th>ثبت</th><th>تصمیم</th></tr></thead>
-    <tbody>{% for p in payments %}<tr><td dir="ltr">{{ p.invoice_number or p.id }}</td><td>{{ label(labels.purpose, p.purpose) }}</td><td>{{ label(labels.method, p.method) }}</td><td>{{ label(labels.status, p.status) }}{% if p.auto_approved %} (خودکار){% endif %}</td><td>{{ p.amount | toman_amount }}{% if p.original_amount %} <span class="hint">از {{ p.original_amount | toman_amount }}</span>{% endif %}</td><td>{{ p.service or "—" }}</td><td>{{ p.created_at | jalali_dt }}</td><td>{% if p.resolved_at %}{{ p.resolved_at | jalali_dt }}{% else %}—{% endif %}</td></tr>{% else %}<tr><td colspan="8" class="hint">—</td></tr>{% endfor %}</tbody>
-  </table>
+
+<div class="mt-3">
+{% call ui.card("پرداخت‌ها") %}
+  {% if payments %}
+  {% call ui.table(["فاکتور", "نوع", "روش", "وضعیت", "مبلغ", "سرویس", "ثبت", "تصمیم"]) %}
+    {% for p in payments %}
+    {% call ui.row() %}
+      {% call ui.cell("فاکتور") %}<span dir="ltr">{{ p.invoice_number or p.id }}</span>{% endcall %}
+      {% call ui.cell("نوع") %}{{ label(labels.purpose, p.purpose) }}{% endcall %}
+      {% call ui.cell("روش") %}{{ label(labels.method, p.method) }}{% endcall %}
+      {% call ui.cell("وضعیت") %}{{ ui.state_badge(p.status, family="payment", label=label(labels.status, p.status)) }}{% if p.auto_approved %} (خودکار){% endif %}{% endcall %}
+      {% call ui.cell("مبلغ") %}{{ p.amount | toman_amount }}{% if p.original_amount %} <span class="text-secondary">از {{ p.original_amount | toman_amount }}</span>{% endif %}{% endcall %}
+      {% call ui.cell("سرویس") %}{{ p.service or "—" }}{% endcall %}
+      {% call ui.cell("ثبت") %}{{ p.created_at | jalali_dt }}{% endcall %}
+      {% call ui.cell("تصمیم") %}{% if p.resolved_at %}{{ p.resolved_at | jalali_dt }}{% else %}—{% endif %}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("—") }}{% endif %}
+{% endcall %}
 </div>
+
 {% endif %}
 {% endblock %}

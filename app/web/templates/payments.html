@@ -185,10 +185,8 @@
 
   {# Pagination: the arithmetic and the URL shape are the ones _pager.html
      has always used, and the row-count line is its wording, kept verbatim. #}
-  {% set pages = ((total - 1) // page_size) + 1 if total else 1 %}
   {% set query_string = "tab=" ~ tab ~ "&q=" ~ q ~ "&purpose=" ~ (purpose or "") ~ "&" %}
-  <div class="text-secondary mt-2" data-testid="row-count">{{ total | fa_number }} ردیف · صفحهٔ {{ page | fa_number }} از {{ pages | fa_number }}</div>
-  {{ ui.pagination(page, pages, "?" ~ query_string ~ "page={page}") }}
+  {{ ui.pager(total, page, page_size, query_string, data_testid="row-count") }}
 
   {% else %}
   {{ ui.empty_state("این صف خالی است.") }}

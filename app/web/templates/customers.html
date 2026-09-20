@@ -1,25 +1,30 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-<div class="card">
-  <form method="get" action="/customers" class="filters">
-    <label>جست‌وجو <input type="text" name="q" value="{{ q }}" placeholder="شناسهٔ تلگرام یا نام کاربری" autofocus></label>
-    <button class="btn" type="submit">جست‌وجو</button>
-  </form>
-</div>
-<div class="card" style="margin-top:16px">
-  <table>
-    <thead><tr><th>شناسهٔ تلگرام</th><th>نام کاربری</th><th>اکانت‌ها</th><th>سفارش‌ها</th><th>مجموع خرید</th><th>اولین بازدید</th><th>وضعیت</th></tr></thead>
-    <tbody>
+{% call ui.card() %}
+  {% call ui.filter_form("/customers", submit_label="جست‌وجو") %}
+    <div class="col-12 col-md">
+      {{ ui.field("q", "جست‌وجو", value=q, attrs={"placeholder": "شناسهٔ تلگرام یا نام کاربری", "autofocus": "autofocus"}) }}
+    </div>
+  {% endcall %}
+{% endcall %}
+<div class="mt-3">
+{% call ui.card() %}
+  {% if rows %}
+  {% call ui.table(["شناسهٔ تلگرام", "نام کاربری", "اکانت‌ها", "سفارش‌ها", "مجموع خرید", "اولین بازدید", "وضعیت"]) %}
     {% for r in rows %}
-      <tr>
-        <td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td>
-        <td dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</td>
-        <td>{{ r.accounts | fa_number }}</td><td>{{ r.orders | fa_number }}</td><td>{{ r.spent | toman_amount }}</td>
-        <td>{{ r.first_seen_at | jalali_dt }}</td>
-        <td>{% if r.is_blocked %}<span class="badge">مسدود</span>{% else %}فعال{% endif %}</td>
-      </tr>
-    {% else %}<tr><td colspan="7" class="hint">مشتری‌ای پیدا نشد.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+    {% call ui.row() %}
+      {% call ui.cell("شناسهٔ تلگرام") %}<a class="link-primary" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% endcall %}
+      {% call ui.cell("نام کاربری") %}<span dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</span>{% endcall %}
+      {% call ui.cell("اکانت‌ها") %}{{ r.accounts | fa_number }}{% endcall %}
+      {% call ui.cell("سفارش‌ها") %}{{ r.orders | fa_number }}{% endcall %}
+      {% call ui.cell("مجموع خرید") %}{{ r.spent | toman_amount }}{% endcall %}
+      {% call ui.cell("اولین بازدید") %}{{ r.first_seen_at | jalali_dt }}{% endcall %}
+      {% call ui.cell("وضعیت") %}{% if r.is_blocked %}{{ ui.state_badge("", label="مسدود") }}{% else %}فعال{% endif %}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("مشتری‌ای پیدا نشد.") }}{% endif %}
+{% endcall %}
 </div>
 {% endblock %}

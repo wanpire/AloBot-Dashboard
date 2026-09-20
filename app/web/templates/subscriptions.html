@@ -1,31 +1,45 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-<div class="card">
-  <form method="get" action="/subscriptions" class="filters">
-    <label>نوع سرویس <select name="category"><option value="">همه</option>{% for k, v in labels.category.items() %}<option value="{{ k }}" {% if filters.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
-    <label>تست <select name="trial"><option value="">همه</option><option value="1" {% if filters.trial == True %}selected{% endif %}>فقط تست</option><option value="0" {% if filters.trial == False %}selected{% endif %}>بدون تست</option></select></label>
-    <label>وضعیت <select name="state"><option value="">همه</option><option value="active" {% if filters.state == "active" %}selected{% endif %}>فعال</option><option value="expired" {% if filters.state == "expired" %}selected{% endif %}>منقضی</option><option value="unknown" {% if filters.state == "unknown" %}selected{% endif %}>نامشخص</option></select></label>
-    <label>جست‌وجو <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="نام کاربری IBSng یا شناسهٔ تلگرام"></label>
-    <button class="btn" type="submit">اعمال</button>
-  </form>
-  <p class="hint">«نامشخص» یعنی آلوبات تاریخ انقضا را ذخیره نکرده و آن را زنده از IBSng می‌خواند؛ این داشبورد به IBSng وصل نمی‌شود.</p>
-</div>
-<div class="card" style="margin-top:16px">
-  <table>
-    <thead><tr><th>نام کاربری IBSng</th><th>گروه</th><th>مشتری</th><th>سرویس</th><th>نوع</th><th>وضعیت</th><th>انقضا</th><th>ساخت</th></tr></thead>
-    <tbody>
+{% call ui.card() %}
+  {% call ui.filter_form("/subscriptions") %}
+    <div class="col-12 col-md-3">
+      {{ ui.field("category", "نوع سرویس", value=filters.category or "", options=[("", "همه")] + (labels.category.items() | list)) }}
+    </div>
+    <div class="col-12 col-md-2">
+      {{ ui.field("trial", "تست", value=("1" if filters.trial == True else ("0" if filters.trial == False else "")),
+                  options=[("", "همه"), ("1", "فقط تست"), ("0", "بدون تست")]) }}
+    </div>
+    <div class="col-12 col-md-2">
+      {{ ui.field("state", "وضعیت", value=filters.state or "",
+                  options=[("", "همه"), ("active", "فعال"), ("expired", "منقضی"), ("unknown", "نامشخص")]) }}
+    </div>
+    <div class="col-12 col-md">
+      {{ ui.field("q", "جست‌وجو", value=filters.q or "", attrs={"placeholder": "نام کاربری IBSng یا شناسهٔ تلگرام"}) }}
+    </div>
+  {% endcall %}
+  <p class="text-secondary">«نامشخص» یعنی آلوبات تاریخ انقضا را ذخیره نکرده و آن را زنده از IBSng می‌خواند؛ این داشبورد به IBSng وصل نمی‌شود.</p>
+{% endcall %}
+<div class="mt-3">
+{% call ui.card() %}
+  {% if rows %}
+  {% call ui.table(["نام کاربری IBSng", "گروه", "مشتری", "سرویس", "نوع", "وضعیت", "انقضا", "ساخت"]) %}
     {% for r in rows %}
-      <tr>
-        <td dir="ltr">{{ r.ibsng_username }}</td><td dir="ltr">{{ r.ibsng_group }}</td>
-        <td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td>
-        <td>{{ r.service or "—" }}</td><td>{% if r.is_trial %}تست{% else %}{{ label(labels.category, r.category) }}{% endif %}</td>
-        <td>{% if r.state == "active" %}فعال{% elif r.state == "expired" %}منقضی{% else %}<span class="hint">نامشخص</span>{% endif %}</td>
-        <td>{% if r.expires_at %}{{ r.expires_at | jalali_dt }}{% else %}—{% endif %}</td><td>{{ r.created_at | jalali_dt }}</td>
-      </tr>
-    {% else %}<tr><td colspan="8" class="hint">اکانتی با این فیلتر نیست.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+    {% call ui.row() %}
+      {% call ui.cell("نام کاربری IBSng") %}<span dir="ltr">{{ r.ibsng_username }}</span>{% endcall %}
+      {% call ui.cell("گروه") %}<span dir="ltr">{{ r.ibsng_group }}</span>{% endcall %}
+      {% call ui.cell("مشتری") %}<a class="link-primary" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% endcall %}
+      {% call ui.cell("سرویس") %}{{ r.service or "—" }}{% endcall %}
+      {% call ui.cell("نوع") %}{% if r.is_trial %}تست{% else %}{{ label(labels.category, r.category) }}{% endif %}{% endcall %}
+      {% call ui.cell("وضعیت") %}{% if r.state == "active" %}فعال{% elif r.state == "expired" %}منقضی{% else %}<span class="text-secondary">نامشخص</span>{% endif %}{% endcall %}
+      {% call ui.cell("انقضا") %}{% if r.expires_at %}{{ r.expires_at | jalali_dt }}{% else %}—{% endif %}{% endcall %}
+      {% call ui.cell("ساخت") %}{{ r.created_at | jalali_dt }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
   {% set query_string = "category=" ~ (filters.category or "") ~ "&state=" ~ (filters.state or "") ~ "&q=" ~ (filters.q or "") ~ "&trial=" ~ ("1" if filters.trial == True else ("0" if filters.trial == False else "")) ~ "&" %}
-  {% include "_pager.html" %}
+  {{ ui.pager(total, page, page_size, query_string) }}
+  {% else %}{{ ui.empty_state("اکانتی با این فیلتر نیست.") }}{% endif %}
+{% endcall %}
 </div>
 {% endblock %}

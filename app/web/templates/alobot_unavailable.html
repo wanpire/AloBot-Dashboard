@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "password_changed" %}<div class="flash flash--ok">رمز عبور تغییر کرد.</div>{% endif %}
-<div class="card">
-  <h2>پایگاه‌دادهٔ آلوبات متصل نیست</h2>
+{% if notice == "password_changed" %}{{ ui.toast("رمز عبور تغییر کرد.", tone="success") }}{% endif %}
+{% call ui.card("پایگاه‌دادهٔ آلوبات متصل نیست") %}
   <p>این بخش داده‌اش را از پایگاه‌دادهٔ آلوبات می‌خواند و در حال حاضر به آن دسترسی ندارد:</p>
   <ul>{% for p in problems %}<li dir="ltr">{{ p }}</li>{% endfor %}</ul>
-  <p class="hint">تا اتصال برقرار نشود، بخش‌های مستقل داشبورد (تنظیمات، دسترسی‌ها، رویدادها) همچنان کار می‌کنند.</p>
-</div>
+  <p class="text-secondary">تا اتصال برقرار نشود، بخش‌های مستقل داشبورد (تنظیمات، دسترسی‌ها، رویدادها) همچنان کار می‌کنند.</p>
+{% endcall %}
 {% endblock %}

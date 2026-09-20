@@ -1,32 +1,43 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-<div class="card">
-  <form method="get" action="/orders" class="filters">
-    <label>وضعیت <select name="status"><option value="">همه</option>{% for k, v in labels.status.items() %}<option value="{{ k }}" {% if filters.status == k %}selected{% endif %}>{{ v }} ({{ by_status.get(k, 0) | fa_number }})</option>{% endfor %}</select></label>
-    <label>روش <select name="method"><option value="">همه</option>{% for k, v in labels.method.items() %}<option value="{{ k }}" {% if filters.method == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
-    <label>نوع <select name="purpose"><option value="">همه</option>{% for k, v in labels.purpose.items() %}<option value="{{ k }}" {% if filters.purpose == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
-    <label>نوع سرویس <select name="category"><option value="">همه</option>{% for k, v in labels.category.items() %}<option value="{{ k }}" {% if filters.category == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
-    <label>جست‌وجو <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="شمارهٔ فاکتور، شناسهٔ تلگرام، نام کاربری"></label>
-    <button class="btn" type="submit">اعمال</button>
-  </form>
-</div>
-<div class="card" style="margin-top:16px">
-  <table>
-    <thead><tr><th>فاکتور</th><th>مشتری</th><th>نوع</th><th>روش</th><th>وضعیت</th><th>مبلغ</th><th>سرویس</th><th>اکانت</th><th>رسید</th><th>ثبت</th></tr></thead>
-    <tbody>
+{% call ui.card() %}
+  {% set status_options = [("", "همه")] %}
+  {% for k, v in labels.status.items() %}{% set _ = status_options.append((k, v ~ " (" ~ (by_status.get(k, 0) | fa_number) ~ ")")) %}{% endfor %}
+  {% call ui.filter_form("/orders") %}
+    <div class="col-12 col-md-2">{{ ui.field("status", "وضعیت", value=filters.status or "", options=status_options) }}</div>
+    <div class="col-12 col-md-2">{{ ui.field("method", "روش", value=filters.method or "", options=[("", "همه")] + (labels.method.items() | list)) }}</div>
+    <div class="col-12 col-md-2">{{ ui.field("purpose", "نوع", value=filters.purpose or "", options=[("", "همه")] + (labels.purpose.items() | list)) }}</div>
+    <div class="col-12 col-md-2">{{ ui.field("category", "نوع سرویس", value=filters.category or "", options=[("", "همه")] + (labels.category.items() | list)) }}</div>
+    <div class="col-12 col-md">{{ ui.field("q", "جست‌وجو", value=filters.q or "", attrs={"placeholder": "شمارهٔ فاکتور، شناسهٔ تلگرام، نام کاربری"}) }}</div>
+  {% endcall %}
+{% endcall %}
+<div class="mt-3">
+{% call ui.card() %}
+  {% if rows %}
+  {% call ui.table(["فاکتور", "مشتری", "نوع", "روش", "وضعیت", "مبلغ", "سرویس", "اکانت", "رسید", "ثبت"]) %}
     {% for r in rows %}
-      <tr>
-        <td dir="ltr">{{ r.invoice_number or r.id }}</td>
-        <td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% if r.username %} <span class="hint" dir="ltr">@{{ r.username }}</span>{% endif %}</td>
-        <td>{{ label(labels.purpose, r.purpose) }}</td><td>{{ label(labels.method, r.method) }}</td>
-        <td>{{ label(labels.status, r.status) }}{% if r.auto_approved %} <span class="hint">خودکار</span>{% endif %}</td>
-        <td>{{ r.amount | toman_amount }}</td><td>{{ r.service or "—" }} <span class="hint">{{ label(labels.category, r.category) if r.category else "" }}</span></td>
-        <td dir="ltr">{{ r.ibsng_username }}</td><td>{{ "دارد" if r.receipt_file_id else "—" }}</td><td>{{ r.created_at | jalali_dt }}</td>
-      </tr>
-    {% else %}<tr><td colspan="10" class="hint">سفارشی با این فیلتر نیست.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+    {% call ui.row() %}
+      {% call ui.cell("فاکتور") %}<span dir="ltr">{{ r.invoice_number or r.id }}</span>{% endcall %}
+      {% call ui.cell("مشتری") %}
+        <a class="link-primary" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% if r.username %} <span class="text-secondary" dir="ltr">@{{ r.username }}</span>{% endif %}
+      {% endcall %}
+      {% call ui.cell("نوع") %}{{ label(labels.purpose, r.purpose) }}{% endcall %}
+      {% call ui.cell("روش") %}{{ label(labels.method, r.method) }}{% endcall %}
+      {% call ui.cell("وضعیت") %}
+        {{ ui.state_badge(r.status, family="payment", label=label(labels.status, r.status)) }}{% if r.auto_approved %} <span class="text-secondary">خودکار</span>{% endif %}
+      {% endcall %}
+      {% call ui.cell("مبلغ") %}{{ r.amount | toman_amount }}{% endcall %}
+      {% call ui.cell("سرویس") %}{{ r.service or "—" }} <span class="text-secondary">{{ label(labels.category, r.category) if r.category else "" }}</span>{% endcall %}
+      {% call ui.cell("اکانت") %}<span dir="ltr">{{ r.ibsng_username }}</span>{% endcall %}
+      {% call ui.cell("رسید") %}{{ "دارد" if r.receipt_file_id else "—" }}{% endcall %}
+      {% call ui.cell("ثبت") %}{{ r.created_at | jalali_dt }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
   {% set query_string = "status=" ~ (filters.status or "") ~ "&method=" ~ (filters.method or "") ~ "&purpose=" ~ (filters.purpose or "") ~ "&category=" ~ (filters.category or "") ~ "&q=" ~ (filters.q or "") ~ "&" %}
-  {% include "_pager.html" %}
+  {{ ui.pager(total, page, page_size, query_string) }}
+  {% else %}{{ ui.empty_state("سفارشی با این فیلتر نیست.") }}{% endif %}
+{% endcall %}
 </div>
 {% endblock %}
