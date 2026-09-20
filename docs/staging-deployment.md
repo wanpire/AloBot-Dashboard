@@ -1,6 +1,20 @@
 # Phase 6 task 5 — staging deployment on the production host
 
-**Status: not done. Waiting for the owner's explicit go-ahead.**
+**Status: approved and deployed.** The three questions below were answered by
+the owner; the answers are recorded here and the deployment followed them.
+
+| Question | Answer |
+|---|---|
+| The copy's data | Restore AloBot's nightly backup **as it is**. It stays on the host the data already lives on. |
+| Telegram bot for operator alerts | A dedicated throwaway bot, `@AlonetPanelbot`, separate from AloBot's own. Its token lives only in the server's `.env` (mode 600) - never in git, never in a log, never on a screen in the panel. |
+| Hostname | `panel.alonet.co`. |
+
+One correction found while deploying: AloBot's nightly backup is built in
+memory and sent to Telegram, never written to disk, so there is no backup
+file on the host to copy. The copy is therefore taken with the same
+`pg_dump -Fc` that AloBot's own backup job runs, against the same database,
+which is a read-only snapshot and no more invasive than what already happens
+every night.
 
 Everything else in Phase 6 is finished and runs on a laptop. This task is the
 first thing in this project that touches the machine AloBot runs on, and it
