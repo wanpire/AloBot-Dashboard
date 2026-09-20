@@ -119,12 +119,30 @@ beside AloBot and dns-switcher and touching neither.
 | AloBot's token | not present, so receipt images and customer messages stay off |
 | Operator | one ADMIN, password set at creation and changeable in the panel |
 
-**Waiting on DNS.** `panel.alonet.co` still resolves to 51.38.251.33; this
-host is 51.68.59.237. The vhost is in place and answers over HTTP, and the
-certificate can be issued with `certbot --nginx -d panel.alonet.co` as soon as
-the A record moves. Until then the panel cannot actually be used, because the
-session cookie is `Secure` and a browser will not send it over plain HTTP -
-which is the correct behaviour outside a relaxed environment, not a fault.
+**Live at `https://panel.alonet.co`**, with a Let's Encrypt certificate that
+nginx on this host serves and certbot renews on its own timer (the dry run
+passes). Plain HTTP redirects to HTTPS with a 301.
+
+Getting there took two corrections that are worth remembering, because both
+looked like the dashboard's fault and neither was:
+
+1. The A record had to move to this host, 51.68.59.237.
+2. This host sits behind NAT on 10.3.2.1 with no public address of its own,
+   and ports 80 and 443 for that public IP were being forwarded to a
+   different machine on the same network - the Homeland Bot box at 10.3.2.3,
+   which runs Caddy. Until the owner repointed those forwards, every external
+   request for this hostname was answered by that other machine, and no
+   certificate could be issued here. **That box is another project's and is
+   out of scope; nothing here touches it.**
+
+**Client IP addresses do not survive the NAT.** nginx sees every external
+visitor as the gateway, 10.3.2.2, so `TRUSTED_PROXY_IP_HEADER` gives the app
+one bucket for everyone rather than a bucket per visitor. The per-IP login
+limit (20 a minute) is therefore shared: it still caps brute force, but a
+determined attacker can spend that minute's allowance and briefly delay a real
+operator's login. The per-account lockout is the real protection and is
+unaffected. There is no fix on this host, because the address genuinely is not
+carried through.
 
 **The teardown was tested, not just written down.** `docker compose down -v`
 removed both containers, the data volume and both networks, leaving nothing
