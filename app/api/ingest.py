@@ -15,6 +15,7 @@ import json
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -26,6 +27,12 @@ from app.web.guards import client_ip
 
 router = APIRouter()
 log = get_logger(__name__)
+
+# A saturated connection pool is a capacity fact, not a fault. The relay
+# retries on any non-2xx, so what matters is that the log stays readable and
+# the answer says "later" rather than "broken": 503 with Retry-After, and a
+# warning the operator sees on the events page.
+RETRY_AFTER_SECONDS = 5
 
 device_limiter = FixedWindowLimiter(limit=600, window_seconds=60)
 ip_limiter = FixedWindowLimiter(limit=120, window_seconds=60)
@@ -86,6 +93,18 @@ async def receive_sms(request: Request, db: AsyncSession = Depends(get_db)) -> J
         return JSONResponse({"error": "missing_fields"}, status_code=400)
 
     now = dt.datetime.now(dt.timezone.utc)
+    try:
+        return await _handle(db, data, device_code, api_key, message, sender, now, settings)
+    except PoolTimeout:
+        log.warning("ingest.saturated", device=device_code[:32])
+        return JSONResponse(
+            {"error": "busy", "retryAfter": RETRY_AFTER_SECONDS},
+            status_code=503,
+            headers={"Retry-After": str(RETRY_AFTER_SECONDS)},
+        )
+
+
+async def _handle(db: AsyncSession, data: dict, device_code: str, api_key: str, message: str, sender: str, now: dt.datetime, settings) -> JSONResponse:
     device = await ingest_service.authenticate(db, device_code, api_key, now)
     if device is None:
         log.warning("ingest.unauthorized", device=device_code[:32])

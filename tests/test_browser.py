@@ -13,17 +13,12 @@ talk to one database and a claim seeded here is the claim on the screen.
 
 from __future__ import annotations
 
-import asyncio
-import socket
-
 import pytest
-import uvicorn
 from playwright.async_api import async_playwright
 
 from app.alobot.link import link
 from app.alobot.seed import seed_alobot_copy
 from app.db.session import async_session_maker
-from app.main import app
 from app.services import review, settle
 from app.web.nav import NAV, visible
 from tests.conftest import ALOBOT_ADMIN_URL
@@ -33,28 +28,6 @@ from tests.web import PASSWORD, make_operator
 SECTIONS = [item.id for group in NAV for item in group.items]
 
 
-def _free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-@pytest.fixture(scope="session")
-async def base_url():
-    """The app, served over a real TCP socket, in this loop."""
-    port = _free_port()
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", lifespan="on"))
-    task = asyncio.create_task(server.serve())
-    for _ in range(200):
-        if server.started:
-            break
-        await asyncio.sleep(0.05)
-    else:  # pragma: no cover - the server failed to come up
-        task.cancel()
-        raise RuntimeError("uvicorn did not start")
-    yield f"http://127.0.0.1:{port}"
-    server.should_exit = True
-    await task
 
 
 @pytest.fixture(scope="session")

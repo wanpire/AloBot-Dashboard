@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     # the visitor can type themselves.
     trusted_proxy_ip_header: str = ""
 
+    # The connection pool for this project's OWN database. Tunable because
+    # the right number depends on the host, and measured by the ingest load
+    # test rather than guessed. The pools that reach AloBot's Postgres are
+    # NOT tunable here: they are budgeted in app/db/session.py.
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+
     # The public SMS door. Body cap in bytes (a bank SMS is a few hundred),
     # per-device and per-IP request limits per minute.
     ingest_max_body_bytes: int = 8192

@@ -29,6 +29,11 @@ services:
     image: postgres:16-alpine
     container_name: alobot-dashboard-db
     restart: unless-stopped
+    # Postgres' own default, stated rather than inherited: the app's pool
+    # reaches 15 connections (DB_POOL_SIZE + DB_MAX_OVERFLOW), which leaves
+    # ample room for Alembic, the restore drill and a psql session. Raise
+    # this before raising the pool, never after.
+    command: ["postgres", "-c", "max_connections=100"]
     environment:
       POSTGRES_USER: dashboard
       POSTGRES_PASSWORD: ${DASHBOARD_DB_PASSWORD:-dashboard}

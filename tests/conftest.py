@@ -170,3 +170,38 @@ async def session():
 
     async with async_session_maker() as s:
         yield s
+
+
+def _free_port() -> int:
+    import socket
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+@pytest.fixture(scope="session")
+async def base_url():
+    """The app served over a real TCP socket, inside this test session's own
+    event loop, so the browser (or a load generator) and the test share one
+    database. ASGI-in-process transports cannot show queueing at the socket,
+    which is exactly what the load test is about."""
+    import asyncio
+
+    import uvicorn
+
+    from app.main import app
+
+    port = _free_port()
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", lifespan="on"))
+    task = asyncio.create_task(server.serve())
+    for _ in range(200):
+        if server.started:
+            break
+        await asyncio.sleep(0.05)
+    else:  # pragma: no cover - the server failed to come up
+        task.cancel()
+        raise RuntimeError("uvicorn did not start")
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    await task
