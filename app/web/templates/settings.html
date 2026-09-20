@@ -1,24 +1,28 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">تنظیمات ذخیره شد.</div>{% endif %}
-<div class="card">
+{% if notice == "saved" %}{{ ui.toast("تنظیمات ذخیره شد.", tone="success") }}{% endif %}
+{% call ui.card() %}
   <form method="post" action="/settings">
     {% for spec in specs %}
     {% set value = values[(spec.scope, spec.key)] %}
-    <label>{{ spec.label }}
-      {% if spec.kind == "bool" %}
-        <input type="checkbox" name="{{ spec.form_name }}" value="1" {% if value %}checked{% endif %}>
-      {% elif spec.kind == "int" %}
-        <input type="number" name="{{ spec.form_name }}" value="{{ value if value is not none else '' }}" min="{{ spec.min }}" max="{{ spec.max }}" required>
-      {% elif spec.kind == "chat_id" %}
-        <input type="text" name="{{ spec.form_name }}" value="{{ value if value is not none else '' }}" inputmode="numeric" pattern="-?[0-9]*">
-      {% else %}
-        <input type="text" name="{{ spec.form_name }}" value="{{ value or '' }}">
-      {% endif %}
-      <span class="hint">{{ spec.hint }}</span>
-    </label>
+    {% if spec.kind == "bool" %}
+      <label class="form-check">
+        <input class="form-check-input" type="checkbox" name="{{ spec.form_name }}" value="1" {% if value %}checked{% endif %}>
+        <span class="form-check-label">{{ spec.label }}</span>
+        <small class="form-hint d-block">{{ spec.hint }}</small>
+      </label>
+    {% elif spec.kind == "int" %}
+      {{ ui.field(spec.form_name, spec.label, value=value if value is not none else "", type="number", hint=spec.hint,
+                  required=True, attrs={"min": spec.min, "max": spec.max}) }}
+    {% elif spec.kind == "chat_id" %}
+      {{ ui.field(spec.form_name, spec.label, value=value if value is not none else "", hint=spec.hint,
+                  attrs={"inputmode": "numeric", "pattern": "-?[0-9]*"}) }}
+    {% else %}
+      {{ ui.field(spec.form_name, spec.label, value=value or "", hint=spec.hint) }}
+    {% endif %}
     {% endfor %}
-    {% if operator.role == "ADMIN" %}<button class="btn btn--primary" type="submit">ذخیره</button>{% endif %}
+    {% if operator.role == "ADMIN" %}{{ ui.btn("ذخیره", tone="primary", type="submit") }}{% endif %}
   </form>
-</div>
+{% endcall %}
 {% endblock %}

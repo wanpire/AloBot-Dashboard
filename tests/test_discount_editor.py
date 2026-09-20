@@ -99,7 +99,7 @@ async def test_usages_list_names_the_customer_and_what_was_given(seeded):
     assert rows and rows[0].telegram_id and rows[0].original_amount > rows[0].amount
 
 
-async def test_expiry_and_per_user_limit_are_recorded_as_an_alobot_migration_not_applied_here():
+async def test_expiry_and_per_user_limit_came_from_alobots_own_migration():
     from pathlib import Path
 
     draft = Path("docs/alobot-migrations/0001_discount_expiry_and_per_user_limit.md")
@@ -108,4 +108,12 @@ async def test_expiry_and_per_user_limit_are_recorded_as_an_alobot_migration_not
     assert "expires_at" in body and "per_user_limit" in body and "Phase 7" in body
     async with write_engine.connect() as conn:
         cols = {r.column_name for r in await conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='discount_codes'"))}
-    assert "expires_at" not in cols and "per_user_limit" not in cols, "the copy's schema must NOT be altered in this phase"
+    # When this was written the migration was drafted and unapplied, and the
+    # assertion was that the copy must NOT have the columns. AloBot has since
+    # merged it, so the copy grows them the only legitimate way: by running
+    # AloBot's own migrations. What must still hold is that they arrived from
+    # there and not from anything this project did.
+    assert "expires_at" in cols and "per_user_limit" in cols
+    migration = Path("vendor/alobot/alembic/versions")
+    applied_upstream = [f for f in migration.glob("*.py") if "per_user_limit" in f.read_text()]
+    assert applied_upstream, "the columns exist in the copy but no AloBot migration creates them"

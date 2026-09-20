@@ -1,52 +1,109 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice %}<div class="flash flash--ok">{{ "حساب ساخته شد." if notice == "created" else "ذخیره شد." }}</div>{% endif %}
+{% if notice %}{{ ui.toast("حساب ساخته شد." if notice == "created" else "ذخیره شد.", tone="success") }}{% endif %}
+
 {% for g in groups %}
-<div class="card" style="margin-bottom:16px">
-  <h2>{{ g.account.display_name }} <span class="badge">{{ status_labels[g.account.status] }}</span> <span class="hint">{{ g.account.bank_name }}{% if g.account.owner_label %} · {{ g.account.owner_label }}{% endif %}</span></h2>
-  <p class="hint">{{ status_hints[g.account.status] }}{% if g.inferred_from %} احتمالاً همان حساب «{{ g.inferred_from.display_name }}» است (زنجیرهٔ مانده می‌خواند).{% endif %}</p>
-  <div class="grid grid--cards">
-    <div>
+<div class="mb-3">
+{% call ui.card() %}
+  {% call ui.card_title() %}
+    {{ g.account.display_name }}
+    {{ ui.state_badge(g.account.status, family="account", label=status_labels[g.account.status]) }}
+    <span class="text-secondary">{{ g.account.bank_name }}{% if g.account.owner_label %} · {{ g.account.owner_label }}{% endif %}</span>
+  {% endcall %}
+  <p class="text-secondary">{{ status_hints[g.account.status] }}{% if g.inferred_from %} احتمالاً همان حساب «{{ g.inferred_from.display_name }}» است (زنجیرهٔ مانده می‌خواند).{% endif %}</p>
+
+  <div class="row row-cards">
+    <div class="col-12 col-lg-6">
       <h3>شناسه‌ها</h3>
-      <table>{% for i in g.identifiers %}<tr><td>{{ kind_labels[i.kind] }}</td><td dir="ltr">{{ i.value }}</td><td>{% if operator.role == "ADMIN" %}<form method="post" action="/accounts/{{ g.account.id }}/identifiers/{{ i.id }}/delete" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td></tr>{% else %}<tr><td class="hint">—</td></tr>{% endfor %}</table>
+      {% if g.identifiers %}
+      {% call ui.table(["نوع", "مقدار", ""]) %}
+        {% for i in g.identifiers %}
+        {% call ui.row() %}
+          {% call ui.cell("نوع") %}{{ kind_labels[i.kind] }}{% endcall %}
+          {% call ui.cell("مقدار") %}<span dir="ltr">{{ i.value }}</span>{% endcall %}
+          {% call ui.actions_cell() %}
+            {% if operator.role == "ADMIN" %}
+            <form method="post" action="/accounts/{{ g.account.id }}/identifiers/{{ i.id }}/delete">{{ ui.btn("حذف", size="sm", type="submit") }}</form>
+            {% endif %}
+          {% endcall %}
+        {% endcall %}
+        {% endfor %}
+      {% endcall %}
+      {% else %}<p class="text-secondary">—</p>{% endif %}
       {% if operator.role == "ADMIN" %}
-      <form method="post" action="/accounts/{{ g.account.id }}/identifiers" class="filters">
-        <label>نوع <select name="kind">{% for k in kinds %}<option value="{{ k }}">{{ kind_labels[k] }}</option>{% endfor %}</select></label>
-        <label>مقدار <input type="text" name="value" dir="ltr"></label>
-        <button class="btn" type="submit">افزودن شناسه</button>
-      </form>
+      {% set kind_options = [] %}
+      {% for k in kinds %}{% set _ = kind_options.append((k, kind_labels[k])) %}{% endfor %}
+      {% call ui.filter_form("/accounts/" ~ g.account.id ~ "/identifiers", submit_label="افزودن شناسه", method="post") %}
+        <div class="col-12 col-md-5">{{ ui.field("kind", "نوع", options=kind_options) }}</div>
+        <div class="col-12 col-md">{{ ui.field("value", "مقدار", attrs={"dir": "ltr"}) }}</div>
+      {% endcall %}
       {% endif %}
     </div>
-    <div>
+
+    <div class="col-12 col-lg-6">
       <h3>کارت‌های دریافت</h3>
-      <table>{% for c in g.cards %}<tr><td dir="ltr">{{ c.card_number }}</td><td>{{ c.holder_name }}</td><td>{{ "فعال" if c.status == "ACTIVE" else "غیرفعال" }}</td><td>{% if operator.role == "ADMIN" %}<form method="post" action="/cards/{{ c.id }}/status" class="inline"><input type="hidden" name="status" value="{{ 'DISABLED' if c.status == 'ACTIVE' else 'ACTIVE' }}"><button class="btn btn--ghost" type="submit">{{ "غیرفعال کن" if c.status == "ACTIVE" else "فعال کن" }}</button></form>{% endif %}</td></tr>{% else %}<tr><td class="hint">—</td></tr>{% endfor %}</table>
+      {% if g.cards %}
+      {% call ui.table(["شمارهٔ کارت", "به نام", "وضعیت", ""]) %}
+        {% for c in g.cards %}
+        {% call ui.row() %}
+          {% call ui.cell("شمارهٔ کارت") %}<span dir="ltr">{{ c.card_number }}</span>{% endcall %}
+          {% call ui.cell("به نام") %}{{ c.holder_name }}{% endcall %}
+          {% call ui.cell("وضعیت") %}{{ ui.state_badge(c.status, family="card", label="فعال" if c.status == "ACTIVE" else "غیرفعال") }}{% endcall %}
+          {% call ui.actions_cell() %}
+            {% if operator.role == "ADMIN" %}
+            <form method="post" action="/cards/{{ c.id }}/status">
+              <input type="hidden" name="status" value="{{ 'DISABLED' if c.status == 'ACTIVE' else 'ACTIVE' }}">
+              {{ ui.btn("غیرفعال کن" if c.status == "ACTIVE" else "فعال کن", size="sm", type="submit") }}
+            </form>
+            {% endif %}
+          {% endcall %}
+        {% endcall %}
+        {% endfor %}
+      {% endcall %}
+      {% else %}<p class="text-secondary">—</p>{% endif %}
       {% if operator.role == "ADMIN" %}
-      <form method="post" action="/accounts/{{ g.account.id }}/cards" class="filters">
-        <label>شمارهٔ کارت <input type="text" name="card_number" dir="ltr" inputmode="numeric"></label>
-        <label>به نام <input type="text" name="holder_name"><span class="hint">همان که روی فاکتور چاپ می‌شود.</span></label>
-        <button class="btn" type="submit">افزودن کارت</button>
-      </form>
+      {% call ui.filter_form("/accounts/" ~ g.account.id ~ "/cards", submit_label="افزودن کارت", method="post") %}
+        <div class="col-12 col-md-5">{{ ui.field("card_number", "شمارهٔ کارت", attrs={"dir": "ltr", "inputmode": "numeric"}) }}</div>
+        <div class="col-12 col-md">{{ ui.field("holder_name", "به نام", hint="همان که روی فاکتور چاپ می‌شود.") }}</div>
+      {% endcall %}
       {% endif %}
     </div>
   </div>
+
   {% if operator.role == "ADMIN" %}
-  <form method="post" action="/accounts/{{ g.account.id }}/status" class="filters" style="margin-top:10px">
-    <label>وضعیت <select name="status">{% for st in statuses %}<option value="{{ st }}" {% if st == g.account.status %}selected{% endif %}>{{ status_labels[st] }} — {{ status_hints[st] }}</option>{% endfor %}</select></label>
-    <button class="btn" type="submit">اعمال</button>
-  </form>
+  {% set status_options = [] %}
+  {% for st in statuses %}{% set _ = status_options.append((st, status_labels[st] ~ " — " ~ status_hints[st])) %}{% endfor %}
+  {% call ui.filter_form("/accounts/" ~ g.account.id ~ "/status", method="post") %}
+    <div class="col-12 col-md-8">{{ ui.field("status", "وضعیت", value=g.account.status, options=status_options) }}</div>
+  {% endcall %}
   {% endif %}
+{% endcall %}
 </div>
-{% else %}<div class="card"><p class="hint">هنوز حسابی ثبت نشده. اولین پیامک بانکی هم خودش یک حساب «در انتظار تایید» می‌سازد.</p></div>{% endfor %}
+{% else %}
+{% call ui.card() %}
+  <p class="text-secondary">هنوز حسابی ثبت نشده. اولین پیامک بانکی هم خودش یک حساب «در انتظار تایید» می‌سازد.</p>
+{% endcall %}
+{% endfor %}
+
 {% if operator.role == "ADMIN" %}
-<div class="card" style="margin-top:16px">
-  <h2>حساب جدید</h2>
+<div class="mt-3">
+{% call ui.card("حساب جدید") %}
+  {% set kind_options = [] %}
+  {% for k in kinds %}{% set _ = kind_options.append((k, kind_labels[k])) %}{% endfor %}
   <form method="post" action="/accounts">
-    <label>بانک <input type="text" name="bank_name" required></label>
-    <label>نام نمایشی <input type="text" name="display_name" required></label>
-    <label>صاحب حساب <input type="text" name="owner_label"></label>
-    <label>شناسه‌ای که در پیامک می‌آید <div class="filters"><select name="identifier_kind">{% for k in kinds %}<option value="{{ k }}">{{ kind_labels[k] }}</option>{% endfor %}</select><input type="text" name="identifier_value" dir="ltr" placeholder="5299"></div></label>
-    <button class="btn btn--primary" type="submit">ساختن</button>
+    <div class="row g-2">
+      <div class="col-12 col-md-4">{{ ui.field("bank_name", "بانک", required=True) }}</div>
+      <div class="col-12 col-md-4">{{ ui.field("display_name", "نام نمایشی", required=True) }}</div>
+      <div class="col-12 col-md-4">{{ ui.field("owner_label", "صاحب حساب") }}</div>
+      {# One label covers both controls here, exactly as before: the select
+         says what kind of identifier, the box beside it holds the value. #}
+      <div class="col-12 col-md-4">{{ ui.field("identifier_kind", "شناسه‌ای که در پیامک می‌آید", options=kind_options) }}</div>
+      <div class="col-12 col-md-4 d-flex align-items-end mb-3">{{ ui.inline_input("identifier_value", placeholder="5299", size="", attrs={"dir": "ltr"}) }}</div>
+    </div>
+    {{ ui.btn("ساختن", tone="primary", type="submit") }}
   </form>
+{% endcall %}
 </div>
 {% endif %}
 {% endblock %}

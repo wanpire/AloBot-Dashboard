@@ -2,6 +2,7 @@
 financial stats, and the bell."""
 
 import datetime as dt
+import re
 
 from sqlalchemy import select
 
@@ -33,7 +34,9 @@ async def test_review_tab_lists_ambiguous_claims_with_their_candidates_and_the_b
         home = await c.get("/")
     assert r.status_code == 200
     assert "AMBIGUOUS_CLAIMS" in r.text and f'name="transaction_id" value="{tx}"' in r.text
-    assert 'class="badge badge--count">۲<' in home.text
+    # The bell's count, selected by its handle rather than by whichever
+    # shell's classes the overview happens to be wearing today.
+    assert 'data-testid="bell-count">۲<' in home.text, "the bell does not show two"
 
 
 async def test_reviewer_can_approve_from_the_page_and_the_row_moves_tabs():

@@ -175,6 +175,33 @@ required; the process refuses to start without them. `ALOBOT_DATABASE_URL` and
 Telegram report chat - each is added to `Settings` and `.env.example` in the
 phase that needs it, never earlier.
 
+## The panel's UI
+
+Two layers exist at once, because the redesign is rolling out screen by screen
+on the `ui/tabler` branch. `docs/ui-guide.md` is the contract; read it before
+touching a template.
+
+- **New:** `base_v2.html` (Tabler shell, RTL, light/dark) plus `_ui.html`, the
+  macro library every migrated screen is built from. **A page never writes a
+  framework class.** No `btn-primary`, no `badge bg-red`: if a screen needs
+  something the library lacks, the macro is added to `_ui.html` and used from
+  there, so that when Tabler renames a class it moves in one file. Tests hold
+  this, along with the state-colour map, which is checked against the model
+  constants so a new status cannot render grey and unlabelled.
+- **Old:** `base.html` plus `app.css`, still serving every screen not yet
+  migrated. Neither can be deleted until the last screen moves; the old layer
+  also has no dark theme, so the toggle does nothing on those screens.
+
+Front-end assets are vendored, pinned and committed under
+`app/web/static/vendor/`: Tabler 1.5.1 and Vazirmatn 33.003. There is no CDN
+link, no `package.json`, no npm and no build step, and tests fail if any of
+those appear. To update one, follow the steps in
+`app/web/static/VENDOR.md` - download the exact new version, copy only the
+`dist` files it lists, refresh the licence, then run the suite and look at the
+shell, because a major version can move class names. A test asserts the
+vendored CSS contains no `@import` and no `url()`, because a stylesheet can
+reach the network on its own and no template review would catch it.
+
 ## Project layout
 
 ```

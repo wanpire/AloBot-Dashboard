@@ -1,37 +1,35 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-<div class="card">
-  <form method="get" action="/events" class="filters">
-    <label>سطح
-      <select name="level"><option value="">همه</option>{% for l in levels %}<option value="{{ l }}" {% if l == level %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
-    </label>
-    <label>جست‌وجو <input type="text" name="q" value="{{ q }}" placeholder="نام رویداد، خطا، یا هر مقداری"></label>
-    <label>بازه (ساعت) <input type="number" name="hours" value="{{ hours }}" min="1" max="720"></label>
-    <button class="btn" type="submit">اعمال</button>
-  </form>
-</div>
-<div class="card" style="margin-top:16px">
-  <table>
-    <thead><tr><th>زمان</th><th>سطح</th><th>رویداد</th><th>ردیابی</th><th></th></tr></thead>
-    <tbody>
+{% call ui.card() %}
+  {% set level_options = [("", "همه")] %}
+  {% for l in levels %}{% set _ = level_options.append((l, l)) %}{% endfor %}
+  {% call ui.filter_form("/events") %}
+    <div class="col-12 col-md-2">{{ ui.field("level", "سطح", value=level or "", options=level_options) }}</div>
+    <div class="col-12 col-md">{{ ui.field("q", "جست‌وجو", value=q, attrs={"placeholder": "نام رویداد، خطا، یا هر مقداری"}) }}</div>
+    <div class="col-12 col-md-2">{{ ui.field("hours", "بازه (ساعت)", value=hours, type="number", attrs={"min": "1", "max": "720"}) }}</div>
+  {% endcall %}
+{% endcall %}
+<div class="mt-3">
+{% call ui.card() %}
+  {% if items %}
+  {% call ui.table(["زمان", "سطح", "رویداد", "ردیابی", ""]) %}
     {% for row, blob in items %}
-      <tr>
-        <td>{{ row.at | jalali_dt }}</td>
-        <td><span class="badge">{{ row.level }}</span></td>
-        <td>{{ row.event }}{% if row.err %} <span class="hint">— {{ row.err[:120] }}</span>{% endif %}</td>
-        <td dir="ltr">{{ row.request_id or "" }}</td>
-        <td>
-          <details>
-            <summary>جزئیات</summary>
-            <pre dir="ltr" data-json="{{ blob }}">{{ blob }}</pre>
-            <button class="btn" type="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.dataset.json)">کپی JSON</button>
-          </details>
-        </td>
-      </tr>
-    {% else %}
-      <tr><td colspan="5" class="hint">رویدادی در این بازه نیست.</td></tr>
+    {% call ui.row() %}
+      {% call ui.cell("زمان") %}{{ row.at | jalali_dt }}{% endcall %}
+      {% call ui.cell("سطح") %}{{ ui.state_badge("", label=row.level) }}{% endcall %}
+      {% call ui.cell("رویداد") %}{{ row.event }}{% if row.err %} <span class="text-secondary">— {{ row.err[:120] }}</span>{% endif %}{% endcall %}
+      {% call ui.cell("ردیابی") %}<span dir="ltr">{{ row.request_id or "" }}</span>{% endcall %}
+      {% call ui.actions_cell() %}
+        <details class="w-100"><summary class="text-primary">جزئیات</summary>
+          <pre dir="ltr" class="ui-code mb-0" data-json="{{ blob }}">{{ blob }}</pre>
+          {{ ui.btn("کپی JSON", size="sm", attrs={"onclick": "navigator.clipboard.writeText(this.previousElementSibling.dataset.json)"}) }}
+        </details>
+      {% endcall %}
+    {% endcall %}
     {% endfor %}
-    </tbody>
-  </table>
+  {% endcall %}
+  {% else %}{{ ui.empty_state("رویدادی در این بازه نیست.") }}{% endif %}
+{% endcall %}
 </div>
 {% endblock %}

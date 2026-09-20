@@ -1,0 +1,261 @@
+{#
+  The Tabler shell. NOT in use yet: every existing page still extends
+  base.html, and this file is adopted screen by screen in later phases.
+
+  It takes exactly the context app/web/templating.py already provides -
+  `nav` as (label, items) pairs, `operator`, `page_id`, `badges`,
+  `env_name`, `app_version` - so adopting it never needs a route change.
+
+  Everything it loads is served from this repository. There is not one
+  external request on this page.
+#}
+{% import "_ui.html" as ui with context %}
+<!doctype html>
+<html dir="rtl" lang="fa" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block page_title %}{% if page_id %}{{ page_label(page_id) }}{% endif %}{% endblock %} · داشبورد آلو</title>
+  <link rel="stylesheet" href="/static/vendor/tabler/css/tabler.rtl.min.css">
+  <link rel="stylesheet" href="/static/shell.css">
+  <script>
+    // Before first paint, so a dark-mode operator never sees a white flash.
+    // Wrapped because a browser with site data blocked throws on localStorage
+    // and a panel that will not render is worse than one that forgets a
+    // preference.
+    (function () {
+      try {
+        var saved = localStorage.getItem("alod-theme");
+        if (saved === "dark" || saved === "light") {
+          document.documentElement.setAttribute("data-bs-theme", saved);
+        }
+      } catch (e) { /* no stored preference is available; light stands */ }
+    })();
+  </script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+{% if not operator %}
+{#
+  Signed out: no sidebar, no topbar, nothing to navigate to. The login and
+  error screens render here, centred, exactly as the old shell's `bare` block
+  did.
+#}
+<div class="page page-center">
+  <div class="container container-tight py-4" data-testid="page-content">
+    <div class="text-center mb-4"><span class="navbar-brand navbar-brand-autodark h1">داشبورد آلو</span></div>
+    {# No flash here: a signed-out screen shows its own message, next to the
+       field it belongs to, and rendering it twice is worse than once. #}
+    {% block bare %}{% endblock %}
+  </div>
+</div>
+{% else %}
+<div class="page">
+
+  {# ── Sidebar: static from md up, a drawer below it ─────────────────── #}
+  <aside class="navbar navbar-vertical navbar-expand-md" data-testid="sidebar">
+    <div class="container-fluid">
+      <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#v2-sidebar-menu"
+              aria-controls="v2-sidebar-menu" aria-label="باز و بسته کردن منو" data-testid="v2-sidebar-toggle">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="navbar-brand navbar-brand-autodark">
+        <a href="/" class="text-reset text-decoration-none">داشبورد آلو</a>
+      </div>
+
+      {# offcanvas-md: a drawer below md, an ordinary column at md and up.
+         RTL puts inline-start on the right, which is where the sidebar sits. #}
+      <div class="offcanvas offcanvas-start offcanvas-md" tabindex="-1" id="v2-sidebar-menu"
+           aria-labelledby="v2-sidebar-title">
+        <div class="offcanvas-header">
+          <h2 class="offcanvas-title h4" id="v2-sidebar-title">منو</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#v2-sidebar-menu"
+                  aria-label="بستن"></button>
+        </div>
+        <div class="offcanvas-body flex-column">
+          <ul class="navbar-nav pt-lg-2 w-100">
+            {% for label, items in nav %}
+            {% set group_id = "v2-nav-group-" ~ loop.index %}
+            {# A group opens when it holds the page you are on, so the item
+               you came from is visible when the page loads. #}
+            {% set group_active = items | selectattr("id", "equalto", page_id) | list | length > 0 %}
+            <li class="nav-item">
+              <button class="nav-link nav-group-toggle d-flex align-items-center" type="button"
+                      data-bs-toggle="collapse" data-bs-target="#{{ group_id }}"
+                      aria-expanded="{{ 'true' if group_active else 'false' }}" aria-controls="{{ group_id }}"
+                      data-testid="v2-nav-group">
+                <span class="nav-link-title flex-fill">{{ label }}</span>
+                <span class="nav-group-caret text-muted" aria-hidden="true">›</span>
+              </button>
+              <div class="collapse{% if group_active %} show{% endif %}" id="{{ group_id }}">
+                <ul class="nav nav-pills flex-column ps-3">
+                  {% for item in items %}
+                  <li class="nav-item">
+                    {# data-icon carries the name nav.py already holds, so the
+                       next phase can drop an inline SVG in without touching
+                       this loop. No icon font is loaded. #}
+                    <a class="nav-link d-flex align-items-center{% if item.id == page_id %} active{% endif %}"
+                       href="/{{ item.id }}" data-icon="{{ item.icon }}" data-testid="v2-nav-item"
+                       {% if item.id == page_id %}aria-current="page"{% endif %}>
+                      <span class="nav-link-title flex-fill">{{ item.label }}</span>
+                      {% if badges.get(item.id) %}
+                      <span class="badge bg-red text-red-fg ms-2" data-testid="v2-nav-badge">{{ badges[item.id] | fa_number }}</span>
+                      {% endif %}
+                    </a>
+                  </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+          <div class="mt-auto pt-3 d-flex gap-2 flex-wrap">
+            <span class="badge bg-yellow text-yellow-fg" data-testid="v2-env">{{ env_name }}</span>
+            <span class="badge bg-secondary text-secondary-fg" title="نسخهٔ در حال اجرا" data-testid="v2-version">{{ app_version[:12] }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="page-wrapper">
+
+    {# ── Topbar ───────────────────────────────────────────────────────── #}
+    <header class="navbar navbar-expand-md d-print-none" data-testid="v2-topbar">
+      <div class="container-fluid">
+        <div class="navbar-nav flex-row order-md-last align-items-center gap-2">
+
+          <a href="/payments?tab=review" class="btn btn-icon btn-ghost-secondary position-relative"
+             title="پرداخت‌های در انتظار بررسی" data-bs-toggle="tooltip"
+             data-poll="{{ bell_poll_seconds }}" data-count="{{ badges.get("payments") or 0 }}" data-testid="bell">
+            <span aria-hidden="true">🔔</span>
+            {% if badges.get("payments") %}
+            <span class="badge bg-red text-red-fg" data-testid="bell-count">{{ badges["payments"] | fa_number }}</span>
+            {% endif %}
+          </a>
+
+          <button class="btn btn-icon btn-ghost-secondary" type="button" id="v2-theme-toggle"
+                  aria-label="تغییر روشنایی" data-bs-toggle="tooltip" title="روشن / تاریک"
+                  data-testid="v2-theme-toggle">
+            <span aria-hidden="true">◐</span>
+          </button>
+
+          <div class="nav-item d-flex align-items-center gap-2">
+            {% if operator %}
+            <span data-testid="v2-operator">{{ operator.display_name }}</span>
+            <span class="badge bg-blue text-blue-fg" data-testid="v2-role">{{ operator.role }}</span>
+            <a href="/password" class="link-secondary">تغییر رمز</a>
+            <form method="post" action="/logout" class="d-inline">
+              <button class="btn btn-ghost-secondary btn-sm" type="submit" data-testid="v2-logout">خروج</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="collapse navbar-collapse" id="v2-topbar-menu">
+          <h1 class="page-title m-0" data-testid="v2-page-title">
+            {% block page_heading %}{% if page_id %}{{ page_label(page_id) }}{% endif %}{% endblock %}
+          </h1>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-body">
+      <div class="container-fluid">
+        {% if continuity %}
+        {{ ui.toast("⚠️ حالت تداوم فعال است تا " ~ (continuity.until | jalali_dt) ~ " — " ~ continuity.reason ~ " (توسط " ~ continuity.by ~ "). پرداخت‌های تازه بدون مدرک بانکی به صف «حالت تداوم» می‌روند.", tone="warning", dismissible=False, data_testid="continuity-banner") }}
+        {% endif %}
+        {% if notice_text %}{{ ui.toast(notice_text, tone="success", data_testid="flash-notice") }}{% endif %}
+        {% if error %}{{ ui.toast(error, tone="danger", data_testid="flash-error") }}{% endif %}
+
+        {% block page_actions %}{% endblock %}
+        <div data-testid="page-content">
+          {% block content %}{% endblock %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script src="/static/vendor/tabler/js/tabler.min.js" defer></script>
+<script src="/static/htmx.min.js" defer></script>
+<script>
+  // Theme choice, remembered. The attribute is what Bootstrap and Tabler read.
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest("#v2-theme-toggle");
+    if (!button) return;
+    var root = document.documentElement;
+    var next = root.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-bs-theme", next);
+    try { localStorage.setItem("alod-theme", next); } catch (e) { /* not remembered, still applied */ }
+  });
+
+  // The bell keeps its own count up to date. Same behaviour as the old shell:
+  // poll, repaint, beep when the number grows, and degrade to a static count
+  // when anything is unavailable.
+  (function () {
+    var bell = document.querySelector('[data-testid="bell"]');
+    if (!bell) return;
+    var every = Number(bell.getAttribute("data-poll") || 0) * 1000;
+    if (!(every > 0)) return;
+    var baseTitle = document.title;
+    var known = Number(bell.getAttribute("data-count") || 0);
+    var audio = null;
+    document.addEventListener("click", function () {
+      if (!audio && window.AudioContext) { try { audio = new AudioContext(); } catch (e) { audio = null; } }
+    }, { once: true });
+    function fa(n) { return String(n).replace(/[0-9]/g, function (d) { return "۰۱۲۳۴۵۶۷۸۹"[Number(d)]; }); }
+    function beep() {
+      if (!audio || audio.state !== "running") return;
+      try {
+        var osc = audio.createOscillator(), gain = audio.createGain();
+        osc.frequency.value = 880; gain.gain.value = 0.04;
+        osc.connect(gain); gain.connect(audio.destination);
+        osc.start(); osc.stop(audio.currentTime + 0.12);
+      } catch (e) { /* a browser that will not beep is not a broken panel */ }
+    }
+    function paint(n) {
+      var badge = bell.querySelector('[data-testid="bell-count"]');
+      if (n > 0) {
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "badge bg-red text-red-fg";
+          badge.setAttribute("data-testid", "bell-count");
+          bell.appendChild(badge);
+        }
+        badge.textContent = fa(n);
+      } else if (badge) {
+        badge.remove();
+      }
+      document.title = (n > 0 ? "(" + fa(n) + ") " : "") + baseTitle;
+    }
+    setInterval(function () {
+      fetch("/bell", { credentials: "same-origin", headers: { accept: "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          var n = Number(data.review || 0);
+          if (n > known) beep();
+          known = n;
+          bell.setAttribute("data-count", n);
+          paint(n);
+        })
+        .catch(function () { /* one failed poll is not worth a visible error */ });
+    }, every);
+  })();
+
+  // Dropdowns, collapses and modals use delegated events and survive a swap.
+  // Tooltips and popovers do not: they are instantiated per element, so any
+  // markup HTMX brings in needs them created again.
+  window.addEventListener("load", function () {
+    if (!window.htmx || !window.bootstrap) return;
+    htmx.onLoad((el) => {
+      el.querySelectorAll('[data-bs-toggle="tooltip"]')
+        .forEach(n => bootstrap.Tooltip.getOrCreateInstance(n));
+    });
+  });
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

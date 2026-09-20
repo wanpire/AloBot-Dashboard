@@ -1,38 +1,63 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
+{% set style_names = {"primary": "آبی", "success": "سبز", "danger": "قرمز"} %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
-<div class="flash">چیدمان کیبورد هم در پایگاه‌دادهٔ <b>همین داشبورد</b> ذخیره می‌شود و آلوبات در فاز یکپارچه‌سازی آن را می‌خواند. پیش‌فرض زیر عیناً منوی امروز ربات است.</div>
+{% if notice == "saved" %}{{ ui.toast("ذخیره شد.", tone="success") }}{% endif %}
+{{ ui.toast("چیدمان کیبورد هم در پایگاه‌دادهٔ <b>همین داشبورد</b> ذخیره می‌شود و آلوبات در فاز یکپارچه‌سازی آن را می‌خواند. پیش‌فرض زیر عیناً منوی امروز ربات است." | safe, tone="info", dismissible=False) }}
+
 {% for menu_id, m in menus.items() %}
-<div class="card">
-  <h2>{{ m.menu.label }} {% if m.customised %}<span class="badge">سفارشی</span>{% else %}<span class="hint">پیش‌فرض</span>{% endif %}</h2>
-  <p class="hint">{{ m.menu.hint }}</p>
+<div class="mb-3">
+{% call ui.card() %}
+  {% call ui.card_title() %}
+    {{ m.menu.label }}
+    {% if m.customised %}{{ ui.state_badge("", label="سفارشی") }}{% else %}<span class="text-secondary">پیش‌فرض</span>{% endif %}
+  {% endcall %}
+  <p class="text-secondary">{{ m.menu.hint }}</p>
+
   {% if operator.role != "ADMIN" %}
   {# Read-only rendering: see the note in texts.html. #}
-  <table>
-    <thead><tr><th>دکمه</th><th>عنوان</th><th>رنگ</th><th>ردیف</th></tr></thead>
-    <tbody>{% for b in m.buttons %}<tr><td dir="ltr" class="hint">{{ b.action }}</td><td>{{ b.label }}</td><td>{{ {"primary": "آبی", "success": "سبز", "danger": "قرمز"}.get(b.style, "پیش‌فرض") }}</td><td>{{ b.row | fa_number }}</td></tr>{% endfor %}</tbody>
-  </table>
+  {% call ui.table(["دکمه", "عنوان", "رنگ", "ردیف"]) %}
+    {% for b in m.buttons %}
+    {% call ui.row() %}
+      {% call ui.cell("دکمه") %}<span class="text-secondary" dir="ltr">{{ b.action }}</span>{% endcall %}
+      {% call ui.cell("عنوان") %}{{ b.label }}{% endcall %}
+      {% call ui.cell("رنگ") %}{{ style_names.get(b.style, "پیش‌فرض") }}{% endcall %}
+      {% call ui.cell("ردیف") %}{{ b.row | fa_number }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
   {% else %}
   <form method="post" action="/keyboard/{{ menu_id }}">
-    <table>
-      <thead><tr><th>نمایش</th><th>دکمه</th><th>عنوان</th><th>رنگ</th><th>ردیف</th></tr></thead>
-      <tbody>
+    {% call ui.table(["نمایش", "دکمه", "عنوان", "رنگ", "ردیف"]) %}
       {% for b in m.menu.buttons %}{% set live = (m.buttons | selectattr("action", "equalto", b.action) | first) %}
-        <tr>
-          <td><input type="checkbox" name="show_{{ b.action }}" value="1" {% if live %}checked{% endif %} {% if b.required %}checked disabled{% endif %}>{% if b.required %}<input type="hidden" name="show_{{ b.action }}" value="1"><span class="badge">الزامی</span>{% endif %}</td>
-          <td dir="ltr" class="hint">{{ b.action }}<br><span class="hint">{{ b.hint }}</span></td>
-          <td><input type="text" name="label_{{ b.action }}" value="{{ live.label if live else b.label }}" maxlength="64"></td>
-          <td><select name="style_{{ b.action }}">{% for s in styles %}<option value="{{ s or '' }}" {% if (live.style if live else b.style) == s %}selected{% endif %}>{{ {"primary": "آبی", "success": "سبز", "danger": "قرمز"}.get(s, "پیش‌فرض") }}</option>{% endfor %}</select></td>
-          <td><input type="number" name="row_{{ b.action }}" value="{{ live.row if live else b.row }}" min="1" max="9" style="width:5rem"></td>
-        </tr>
+      {% call ui.row() %}
+        {% call ui.cell("نمایش") %}
+          <input class="form-check-input" type="checkbox" name="show_{{ b.action }}" value="1" {% if live %}checked{% endif %} {% if b.required %}checked disabled{% endif %}>
+          {% if b.required %}<input type="hidden" name="show_{{ b.action }}" value="1">{{ ui.state_badge("", label="الزامی") }}{% endif %}
+        {% endcall %}
+        {% call ui.cell("دکمه") %}
+          <span class="text-secondary" dir="ltr">{{ b.action }}</span><br><span class="text-secondary">{{ b.hint }}</span>
+        {% endcall %}
+        {% call ui.cell("عنوان") %}{{ ui.inline_input("label_" ~ b.action, value=live.label if live else b.label, attrs={"maxlength": "64"}) }}{% endcall %}
+        {% call ui.cell("رنگ") %}
+          {% set style_options = [] %}
+          {% for s in styles %}{% set _ = style_options.append((s or "", style_names.get(s, "پیش‌فرض"))) %}{% endfor %}
+          {{ ui.inline_select("style_" ~ b.action, style_options, value=(live.style if live else b.style) or "") }}
+        {% endcall %}
+        {% call ui.cell("ردیف") %}
+          {{ ui.inline_input("row_" ~ b.action, type="number", value=live.row if live else b.row, attrs={"min": "1", "max": "9", "class": "form-control form-control-sm ui-time"}) }}
+        {% endcall %}
+      {% endcall %}
       {% endfor %}
-      </tbody>
-    </table>
-    <p class="hint">دکمه‌های الزامی را می‌توان تغییر نام و جابه‌جا کرد، ولی نه برداشت: بدون آن‌ها مشتری در ربات به بن‌بست می‌خورد.</p>
-    <button class="btn btn--primary" type="submit">ذخیره</button>
-    {% if m.customised %}<button class="btn" type="submit" name="reset" value="1">بازگشت به پیش‌فرض</button>{% endif %}
+    {% endcall %}
+    <p class="text-secondary">دکمه‌های الزامی را می‌توان تغییر نام و جابه‌جا کرد، ولی نه برداشت: بدون آن‌ها مشتری در ربات به بن‌بست می‌خورد.</p>
+    <div class="d-flex flex-wrap gap-2">
+      {{ ui.btn("ذخیره", tone="primary", type="submit") }}
+      {% if m.customised %}{{ ui.btn("بازگشت به پیش‌فرض", type="submit", attrs={"name": "reset", "value": "1"}) }}{% endif %}
+    </div>
   </form>
   {% endif %}
+{% endcall %}
 </div>
 {% endfor %}
 {% endblock %}

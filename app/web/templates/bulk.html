@@ -1,43 +1,71 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
+{% set status_names = {"PENDING": "در صف", "SENDING": "در حال ارسال", "DONE": "تمام شد"} %}
 {% block content %}
-{% if notice == "queued" %}<div class="flash flash--ok">ارسال در صف قرار گرفت و در پس‌زمینه می‌رود.</div>{% endif %}
-{% if not alobot_available %}<div class="flash flash--err">پایگاه‌دادهٔ آلوبات متصل نیست؛ فهرست مخاطبان از آن‌جا خوانده می‌شود.</div>{% endif %}
+{% if notice == "queued" %}{{ ui.toast("ارسال در صف قرار گرفت و در پس‌زمینه می‌رود.", tone="success") }}{% endif %}
+{% if not alobot_available %}{{ ui.toast("پایگاه‌دادهٔ آلوبات متصل نیست؛ فهرست مخاطبان از آن‌جا خوانده می‌شود.", tone="danger", dismissible=False) }}{% endif %}
+
 {% if operator.role == "ADMIN" and alobot_available %}
-<div class="card">
-  <h2>ارسال گروهی</h2>
-  <p class="hint">پیام بی‌درنگ برای هر مخاطب صف می‌شود و برگشت‌پذیر نیست. فهرست گیرندگان همان لحظه ثبت می‌شود، پس کسی که وسط ارسال خرید کند حساب ارسال را عوض نمی‌کند. ارسال ناموفق دوباره تلاش نمی‌شود — دلیلش در پایین همین صفحه می‌آید.</p>
+{% call ui.card("ارسال گروهی") %}
+  <p class="text-secondary">پیام بی‌درنگ برای هر مخاطب صف می‌شود و برگشت‌پذیر نیست. فهرست گیرندگان همان لحظه ثبت می‌شود، پس کسی که وسط ارسال خرید کند حساب ارسال را عوض نمی‌کند. ارسال ناموفق دوباره تلاش نمی‌شود — دلیلش در پایین همین صفحه می‌آید.</p>
+  {% set audience_options = [] %}
+  {% for a in audiences %}{% set _ = audience_options.append((a.id, a.label ~ " — " ~ (reaches.get(a.id, 0) | fa_number) ~ " نفر")) %}{% endfor %}
   <form method="post" action="/bulk">
     <input type="hidden" name="batch_id" value="{{ batch_id }}">
-    <label>مخاطب <select name="audience">{% for a in audiences %}<option value="{{ a.id }}">{{ a.label }} — {{ reaches.get(a.id, 0) | fa_number }} نفر</option>{% endfor %}</select>
-      <span class="hint">{% for a in audiences %}{{ a.label }}: {{ a.hint }} {% endfor %}</span></label>
-    <label>متن پیام <textarea name="body" rows="5" dir="auto" required></textarea></label>
-    <div class="filters">
-      <label>عنوان دکمه (اختیاری) <input type="text" name="button_text"></label>
-      <label>لینک دکمه <input type="url" name="button_url" dir="ltr"></label>
+    {{ ui.field("audience", "مخاطب", options=audience_options) }}
+    <p class="form-hint">{% for a in audiences %}{{ a.label }}: {{ a.hint }} {% endfor %}</p>
+    {{ ui.field("body", "متن پیام", type="textarea", required=True, attrs={"dir": "auto", "rows": "5"}) }}
+    <div class="row g-2">
+      <div class="col-12 col-md-6">{{ ui.field("button_text", "عنوان دکمه (اختیاری)") }}</div>
+      <div class="col-12 col-md-6">{{ ui.field("button_url", "لینک دکمه", type="url", attrs={"dir": "ltr"}) }}</div>
     </div>
-    <label><input type="checkbox" name="confirm" value="1"> می‌دانم این پیام به همهٔ مخاطبان انتخاب‌شده می‌رود و برگشت‌پذیر نیست</label>
-    <button class="btn btn--primary" type="submit">ثبت و شروع ارسال</button>
+    <label class="form-check">
+      <input class="form-check-input" type="checkbox" name="confirm" value="1">
+      <span class="form-check-label">می‌دانم این پیام به همهٔ مخاطبان انتخاب‌شده می‌رود و برگشت‌پذیر نیست</span>
+    </label>
+    <div class="mt-2">{{ ui.btn("ثبت و شروع ارسال", tone="primary", type="submit") }}</div>
   </form>
-</div>
+{% endcall %}
 {% endif %}
+
 {% if detail %}
-<div class="card" style="margin-top:16px">
-  <h2>ارسال {{ detail.progress.id | fa_number }}</h2>
-  <p>وضعیت: {{ {"PENDING": "در صف", "SENDING": "در حال ارسال", "DONE": "تمام شد"}[detail.progress.status] }} ·
+<div class="mt-3">
+{% call ui.card("ارسال " ~ (detail.progress.id | fa_number)) %}
+  <p>وضعیت: {{ status_names[detail.progress.status] }} ·
      {{ detail.progress.sent | fa_number }} رسیده · {{ detail.progress.failed | fa_number }} نرسیده · {{ detail.progress.pending | fa_number }} مانده از {{ detail.progress.total | fa_number }}</p>
   {% if detail.failures %}
   <h3>نرسیده‌ها</h3>
-  <table><thead><tr><th>مشتری</th><th>دلیل</th></tr></thead><tbody>{% for f in detail.failures %}<tr><td><a class="link" href="/customers/{{ f.chat_id }}">{{ f.chat_id | string | fa }}</a></td><td dir="ltr">{{ f.error }}</td></tr>{% endfor %}</tbody></table>
+  {% call ui.table(["مشتری", "دلیل"]) %}
+    {% for f in detail.failures %}
+    {% call ui.row() %}
+      {% call ui.cell("مشتری") %}<a class="link-primary" href="/customers/{{ f.chat_id }}">{{ f.chat_id | string | fa }}</a>{% endcall %}
+      {% call ui.cell("دلیل") %}<span dir="ltr">{{ f.error }}</span>{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
   {% endif %}
+{% endcall %}
 </div>
 {% endif %}
-<div class="card" style="margin-top:16px">
-  <h2>ارسال‌های اخیر</h2>
-  <table><thead><tr><th>#</th><th>مخاطب</th><th>متن</th><th>وضعیت</th><th>رسیده</th><th>نرسیده</th><th>توسط</th><th>زمان</th></tr></thead>
-  <tbody>{% for b in recent %}<tr>
-    <td><a class="link" href="/bulk?id={{ b.id }}">{{ b.id | fa_number }}</a></td><td>{{ b.audience }}</td><td>{{ b.body[:40] }}…</td>
-    <td>{{ {"PENDING": "در صف", "SENDING": "در حال ارسال", "DONE": "تمام شد"}[b.status] }}</td>
-    <td>{{ b.sent | fa_number }}</td><td>{{ b.failed | fa_number }}</td><td dir="ltr">{{ b.created_by }}</td><td>{{ b.created_at | jalali_dt }}</td>
-  </tr>{% else %}<tr><td colspan="8" class="hint">هنوز ارسالی ثبت نشده.</td></tr>{% endfor %}</tbody></table>
+
+<div class="mt-3">
+{% call ui.card("ارسال‌های اخیر") %}
+  {% if recent %}
+  {% call ui.table(["#", "مخاطب", "متن", "وضعیت", "رسیده", "نرسیده", "توسط", "زمان"]) %}
+    {% for b in recent %}
+    {% call ui.row() %}
+      {% call ui.cell("#") %}<a class="link-primary" href="/bulk?id={{ b.id }}">{{ b.id | fa_number }}</a>{% endcall %}
+      {% call ui.cell("مخاطب") %}{{ b.audience }}{% endcall %}
+      {% call ui.cell("متن") %}{{ b.body[:40] }}…{% endcall %}
+      {% call ui.cell("وضعیت") %}{{ ui.state_badge(b.status, family="broadcast", label=status_names[b.status]) }}{% endcall %}
+      {% call ui.cell("رسیده") %}{{ b.sent | fa_number }}{% endcall %}
+      {% call ui.cell("نرسیده") %}{{ b.failed | fa_number }}{% endcall %}
+      {% call ui.cell("توسط") %}<span dir="ltr">{{ b.created_by }}</span>{% endcall %}
+      {% call ui.cell("زمان") %}{{ b.created_at | jalali_dt }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("هنوز ارسالی ثبت نشده.") }}{% endif %}
+{% endcall %}
 </div>
 {% endblock %}

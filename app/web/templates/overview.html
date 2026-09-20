@@ -1,42 +1,58 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "password_changed" %}<div class="flash flash--ok">رمز عبور تغییر کرد.</div>{% endif %}
-<div class="grid grid--cards">
-  <div class="card"><div class="stat__label">پرداخت‌های کارت در انتظار</div><div class="stat__value">{{ pending_card | fa_number }}</div><a class="link" href="/orders?status=pending">صف را ببین</a></div>
-  <div class="card"><div class="stat__label">فروش امروز</div><div class="stat__value">{{ approved_today | fa_number }}</div><div class="hint">{{ revenue_today | toman_amount }}</div></div>
-  <div class="card"><div class="stat__label">اکانت‌های فعال (با تاریخ انقضا)</div><div class="stat__value">{{ active_accounts | fa_number }}</div><div class="hint">{{ unknown_expiry | fa_number }} اکانت بدون تاریخ (از IBSng خوانده می‌شود)</div></div>
-  <div class="card"><div class="stat__label">انقضا تا ۳ روز آینده</div><div class="stat__value">{{ expiring_3d | fa_number }}</div></div>
-  <div class="card"><div class="stat__label">سرویس تست امروز</div><div class="stat__value">{{ trials_today | fa_number }}</div></div>
-  <div class="card"><div class="stat__label">مشتری تازه امروز</div><div class="stat__value">{{ new_customers_today | fa_number }}</div></div>
+{% if notice == "password_changed" %}{{ ui.toast("رمز عبور تغییر کرد.", tone="success") }}{% endif %}
+
+<div class="row row-cards">
+  <div class="col-sm-6 col-lg-4">
+    {% call ui.card() %}
+      <div class="subheader">پرداخت‌های کارت در انتظار</div>
+      <div class="h1 mb-0">{{ pending_card | fa_number }}</div>
+      <a class="link-primary" href="/orders?status=pending">صف را ببین</a>
+    {% endcall %}
+  </div>
+  <div class="col-sm-6 col-lg-4">{{ ui.stat_tile("فروش امروز", approved_today | fa_number, hint=revenue_today | toman_amount) }}</div>
+  <div class="col-sm-6 col-lg-4">{{ ui.stat_tile("اکانت‌های فعال (با تاریخ انقضا)", active_accounts | fa_number, hint=(unknown_expiry | fa_number) ~ " اکانت بدون تاریخ (از IBSng خوانده می‌شود)") }}</div>
+  <div class="col-sm-6 col-lg-4">{{ ui.stat_tile("انقضا تا ۳ روز آینده", expiring_3d | fa_number) }}</div>
+  <div class="col-sm-6 col-lg-4">{{ ui.stat_tile("سرویس تست امروز", trials_today | fa_number) }}</div>
+  <div class="col-sm-6 col-lg-4">{{ ui.stat_tile("مشتری تازه امروز", new_customers_today | fa_number) }}</div>
 </div>
-<div class="card">
-  <h2>در انتظار یک نفر</h2>
-  <table>
-    <thead><tr><th>سفارش</th><th>مشتری</th><th>اکانت</th><th>نوع</th><th>مبلغ</th><th>رسید</th><th>ثبت</th></tr></thead>
-    <tbody>
+
+<div class="mt-3">
+{% call ui.card("در انتظار یک نفر") %}
+  {% if pending_list %}
+  {% call ui.table(["سفارش", "مشتری", "اکانت", "نوع", "مبلغ", "رسید", "ثبت"]) %}
     {% for r in pending_list %}
-      <tr>
-        <td>{{ r.id | fa_number }}</td>
-        <td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td>
-        <td dir="ltr">{{ r.ibsng_username }}</td>
-        <td>{{ label(labels.purpose, r.purpose) }}</td>
-        <td>{{ r.amount | toman_amount }}</td>
-        <td>{{ "دارد" if r.receipt_file_id else "ندارد" }}</td>
-        <td>{{ r.created_at | jalali_dt }}</td>
-      </tr>
-    {% else %}<tr><td colspan="7" class="hint">صف خالی است.</td></tr>{% endfor %}
-    </tbody>
-  </table>
-</div>
-<div class="card" style="margin-top:16px">
-  <h2>آخرین تاییدها</h2>
-  <table>
-    <thead><tr><th>فاکتور</th><th>مشتری</th><th>روش</th><th>نوع</th><th>مبلغ</th><th>تایید</th><th>زمان</th></tr></thead>
-    <tbody>
-    {% for r in recent_approved %}
-      <tr><td dir="ltr">{{ r.invoice_number or "—" }}</td><td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td><td>{{ label(labels.method, r.method) }}</td><td>{{ label(labels.purpose, r.purpose) }}</td><td>{{ r.amount | toman_amount }}</td><td>{{ "خودکار" if r.auto_approved else "دستی" }}</td><td>{{ r.resolved_at | jalali_dt }}</td></tr>
+    {% call ui.row() %}
+      {% call ui.cell("سفارش") %}{{ r.id | fa_number }}{% endcall %}
+      {% call ui.cell("مشتری") %}<a class="link-primary" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% endcall %}
+      {% call ui.cell("اکانت") %}<span dir="ltr">{{ r.ibsng_username }}</span>{% endcall %}
+      {% call ui.cell("نوع") %}{{ label(labels.purpose, r.purpose) }}{% endcall %}
+      {% call ui.cell("مبلغ") %}{{ r.amount | toman_amount }}{% endcall %}
+      {% call ui.cell("رسید") %}{{ "دارد" if r.receipt_file_id else "ندارد" }}{% endcall %}
+      {% call ui.cell("ثبت") %}{{ r.created_at | jalali_dt }}{% endcall %}
+    {% endcall %}
     {% endfor %}
-    </tbody>
-  </table>
+  {% endcall %}
+  {% else %}{{ ui.empty_state("صف خالی است.") }}{% endif %}
+{% endcall %}
+</div>
+
+<div class="mt-3">
+{% call ui.card("آخرین تاییدها") %}
+  {% call ui.table(["فاکتور", "مشتری", "روش", "نوع", "مبلغ", "تایید", "زمان"]) %}
+    {% for r in recent_approved %}
+    {% call ui.row() %}
+      {% call ui.cell("فاکتور") %}<span dir="ltr">{{ r.invoice_number or "—" }}</span>{% endcall %}
+      {% call ui.cell("مشتری") %}<a class="link-primary" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% endcall %}
+      {% call ui.cell("روش") %}{{ label(labels.method, r.method) }}{% endcall %}
+      {% call ui.cell("نوع") %}{{ label(labels.purpose, r.purpose) }}{% endcall %}
+      {% call ui.cell("مبلغ") %}{{ r.amount | toman_amount }}{% endcall %}
+      {% call ui.cell("تایید") %}{{ "خودکار" if r.auto_approved else "دستی" }}{% endcall %}
+      {% call ui.cell("زمان") %}{{ r.resolved_at | jalali_dt }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+{% endcall %}
 </div>
 {% endblock %}

@@ -1,36 +1,59 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% include "_alobot_banner.html" %}
-<div class="card">
-  <table>
-    <thead><tr><th>شناسهٔ تلگرام</th><th>نام کاربری</th><th>موجودی</th><th>پورسانت</th><th>اکانت‌ها</th><th>از تاریخ</th><th></th></tr></thead>
-    <tbody>
+{% if not alobot_writes %}
+{{ ui.toast("این بخش تا فاز یکپارچه‌سازی <b>فقط‌خواندنی</b> است: داده از نسخهٔ کپی پایگاه‌دادهٔ آلوبات خوانده می‌شود و هیچ تغییری روی ربات اعمال نمی‌شود." | safe, tone="info", dismissible=False) }}
+{% endif %}
+{% call ui.card() %}
+  {% if rows %}
+  {% call ui.table(["شناسهٔ تلگرام", "نام کاربری", "موجودی", "پورسانت", "اکانت‌ها", "از تاریخ", ""]) %}
     {% for r in rows %}
-      <tr><td><a class="link" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a></td><td dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</td><td>{{ r.balance | toman_amount }}</td><td>{{ r.commission_percent | int | fa_number }}٪</td><td>{{ r.accounts | fa_number }}</td><td>{{ r.created_at | jalali_dt }}</td>
-        <td>{% if operator.role == "ADMIN" %}
-          <details><summary>شارژ</summary>
-            <form method="post" action="/resellers/{{ r.telegram_id }}/topup" class="inline">
-              <label>مبلغ (تومان) <input type="text" name="amount" inputmode="numeric" required></label>
-              <label>بابت <input type="text" name="note" maxlength="200" placeholder="مثلاً کارت به کارت"></label>
-              <button class="btn btn--primary" type="submit">افزودن به موجودی</button>
-            </form>
-          </details>
-        {% endif %}</td></tr>
-    {% else %}<tr><td colspan="7" class="hint">نماینده‌ای ثبت نشده.</td></tr>{% endfor %}
-    </tbody>
-  </table>
-</div>
+    {% call ui.row() %}
+      {% call ui.cell("شناسهٔ تلگرام") %}<a class="link-primary" href="/customers/{{ r.telegram_id }}">{{ r.telegram_id | string | fa }}</a>{% endcall %}
+      {% call ui.cell("نام کاربری") %}<span dir="ltr">{{ ("@" ~ r.username) if r.username else "—" }}</span>{% endcall %}
+      {% call ui.cell("موجودی") %}{{ r.balance | toman_amount }}{% endcall %}
+      {% call ui.cell("پورسانت") %}{{ r.commission_percent | int | fa_number }}٪{% endcall %}
+      {% call ui.cell("اکانت‌ها") %}{{ r.accounts | fa_number }}{% endcall %}
+      {% call ui.cell("از تاریخ") %}{{ r.created_at | jalali_dt }}{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if operator.role == "ADMIN" %}
+        <details class="w-100"><summary class="text-primary">شارژ</summary>
+          <form method="post" action="/resellers/{{ r.telegram_id }}/topup" class="row g-2 align-items-end mt-1">
+            <div class="col-12 col-md-4">{{ ui.field("amount", "مبلغ (تومان)", required=True, attrs={"inputmode": "numeric"}) }}</div>
+            <div class="col-12 col-md-5">{{ ui.field("note", "بابت", attrs={"maxlength": "200", "placeholder": "مثلاً کارت به کارت"}) }}</div>
+            <div class="col-12 col-md-auto mb-3">{{ ui.btn("افزودن به موجودی", tone="primary", type="submit") }}</div>
+          </form>
+        </details>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("نماینده‌ای ثبت نشده.") }}{% endif %}
+{% endcall %}
+
 {% if operator.role == "ADMIN" %}
-<div class="card" style="margin-top:16px">
-  <h2>شارژهای ثبت‌شده از این پنل</h2>
-  <p class="hint">آلوبات تاریخچه‌ای از تغییر موجودی نگه نمی‌دارد؛ این دفترچهٔ خود داشبورد است. ردیف «ثبت نشد» یعنی موجودی آن‌طور که باید تغییر نکرده و باید بررسی شود.</p>
-  <table>
-    <thead><tr><th>نماینده</th><th>مبلغ</th><th>موجودی پس از شارژ</th><th>بابت</th><th>توسط</th><th>زمان</th><th>وضعیت</th></tr></thead>
-    <tbody>{% for t in topups %}
-      <tr><td>{{ t.telegram_id | string | fa }}</td><td>{{ t.amount_irr | toman }}</td><td>{{ t.balance_after_irr | toman }}</td><td>{{ t.note or "—" }}</td><td dir="ltr">{{ t.operator_email }}</td><td>{{ t.created_at | jalali_dt }}</td>
-        <td>{% if t.verified %}<span class="badge">ثبت شد</span>{% else %}<span class="badge badge--count">ثبت نشد</span>{% endif %}</td></tr>
-    {% else %}<tr><td colspan="7" class="hint">هنوز شارژی از این پنل ثبت نشده.</td></tr>{% endfor %}</tbody>
-  </table>
+<div class="mt-3">
+{% call ui.card("شارژهای ثبت‌شده از این پنل") %}
+  <p class="text-secondary">آلوبات تاریخچه‌ای از تغییر موجودی نگه نمی‌دارد؛ این دفترچهٔ خود داشبورد است. ردیف «ثبت نشد» یعنی موجودی آن‌طور که باید تغییر نکرده و باید بررسی شود.</p>
+  {% if topups %}
+  {% call ui.table(["نماینده", "مبلغ", "موجودی پس از شارژ", "بابت", "توسط", "زمان", "وضعیت"]) %}
+    {% for t in topups %}
+    {% call ui.row() %}
+      {% call ui.cell("نماینده") %}{{ t.telegram_id | string | fa }}{% endcall %}
+      {% call ui.cell("مبلغ") %}{{ t.amount_irr | toman }}{% endcall %}
+      {% call ui.cell("موجودی پس از شارژ") %}{{ t.balance_after_irr | toman }}{% endcall %}
+      {% call ui.cell("بابت") %}{{ t.note or "—" }}{% endcall %}
+      {% call ui.cell("توسط") %}<span dir="ltr">{{ t.operator_email }}</span>{% endcall %}
+      {% call ui.cell("زمان") %}{{ t.created_at | jalali_dt }}{% endcall %}
+      {% call ui.cell("وضعیت") %}
+        {% if t.verified %}{{ ui.state_badge("", label="ثبت شد") }}{% else %}{{ ui.state_badge("DEAD", family="notification", label="ثبت نشد") }}{% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("هنوز شارژی از این پنل ثبت نشده.") }}{% endif %}
+{% endcall %}
 </div>
 {% endif %}
 {% endblock %}

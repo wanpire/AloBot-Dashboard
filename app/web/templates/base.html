@@ -9,7 +9,7 @@
 </head>
 <body class="{% if operator %}shell{% else %}bare{% endif %}">
 {% if operator %}
-<aside class="sidebar">
+<aside class="sidebar" data-testid="sidebar">
   <div class="brand">داشبورد آلو</div>
   <nav>
     {% for label, items in nav %}
@@ -30,17 +30,17 @@
   <header class="topbar">
     <div class="crumb">{% if page_id %}{{ page_label(page_id) }}{% else %}{% block heading %}{% endblock %}{% endif %}</div>
     <div class="who">
-      <a href="/payments?tab=review" class="bell" title="پرداخت‌های در انتظار بررسی" data-poll="{{ bell_poll_seconds }}" data-count="{{ badges.get("payments") or 0 }}">🔔{% if badges.get("payments") %} <span class="badge badge--count">{{ badges["payments"] | fa_number }}</span>{% endif %}</a>
+      <a href="/payments?tab=review" class="bell" title="پرداخت‌های در انتظار بررسی" data-poll="{{ bell_poll_seconds }}" data-count="{{ badges.get("payments") or 0 }}" data-testid="bell">🔔{% if badges.get("payments") %} <span class="badge badge--count" data-testid="bell-count">{{ badges["payments"] | fa_number }}</span>{% endif %}</a>
       <span>{{ operator.display_name }}</span>
       <span class="badge">{{ operator.role }}</span>
       <a href="/password" class="link">تغییر رمز</a>
       <form method="post" action="/logout" class="inline"><button class="btn btn--ghost" type="submit">خروج</button></form>
     </div>
   </header>
-  <main class="content">
+  <main class="content" data-testid="page-content">
     {% if continuity %}<div class="flash flash--warn">⚠️ <b>حالت تداوم فعال است</b> تا {{ continuity.until | jalali_dt }} — {{ continuity.reason }} (توسط {{ continuity.by }}). پرداخت‌های تازه بدون مدرک بانکی به صف «حالت تداوم» می‌روند.</div>{% endif %}
-    {% if notice %}<div class="flash flash--ok">{{ notice }}</div>{% endif %}
-    {% if error %}<div class="flash flash--err">{{ error }}</div>{% endif %}
+    {% if notice %}<div class="flash flash--ok" data-testid="flash-notice">{{ notice }}</div>{% endif %}
+    {% if error %}<div class="flash flash--err" data-testid="flash-error">{{ error }}</div>{% endif %}
     {% block content %}{% endblock %}
   </main>
 </div>
@@ -84,6 +84,7 @@
       if (!badge) {
         badge = document.createElement('span');
         badge.className = 'badge badge--count';
+        badge.setAttribute('data-testid', 'bell-count');
         bell.appendChild(document.createTextNode(' '));
         bell.appendChild(badge);
       }

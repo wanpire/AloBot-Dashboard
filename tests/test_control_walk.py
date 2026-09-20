@@ -146,8 +146,14 @@ async def test_a_reviewer_can_still_do_the_job_the_role_exists_for(seeded):
 
 
 def links_in(html: str) -> list[str]:
-    """Every sidebar destination, exactly as the page offers it."""
-    return re.findall(r'href="(/[^"]*)" class="nav-item', html)
+    """Every sidebar destination, exactly as the page offers it.
+
+    Two shells exist while the redesign rolls out: the old one marks a nav
+    link with a class, the new one with a data-testid. Selecting on the
+    handle where there is one is the point of having handles."""
+    new_shell = re.findall(r'<a[^>]*href="(/[^"]*)"[^>]*data-testid="v2-nav-item"', html)
+    old_shell = re.findall(r'href="(/[^"]*)" class="nav-item', html)
+    return new_shell or old_shell
 
 
 async def test_every_link_the_sidebar_draws_actually_opens(seeded):

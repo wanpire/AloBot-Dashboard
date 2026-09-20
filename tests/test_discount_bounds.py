@@ -39,9 +39,12 @@ async def with_columns(seeded):
     )
     await link.connect()
     yield
+    # Leave the schema as AloBot's own migrations leave it - with the columns -
+    # rather than as this test happened to want it. A fixture that hands the
+    # next test a different schema is how an ordering-dependent failure is born.
     await alobot_admin_execute(
-        "ALTER TABLE discount_codes DROP COLUMN IF EXISTS expires_at",
-        "ALTER TABLE discount_codes DROP COLUMN IF EXISTS per_user_limit",
+        "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS expires_at timestamptz NULL",
+        "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS per_user_limit integer NULL",
     )
     await link.connect()
 
@@ -58,6 +61,14 @@ async def without_columns(seeded):
     )
     await link.connect()
     yield
+    # Put the schema back the way AloBot's own migrations leave it. Without
+    # this the next test inherits whichever shape ran last, which is how a
+    # passing suite starts failing depending on ordering.
+    await alobot_admin_execute(
+        "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS expires_at timestamptz NULL",
+        "ALTER TABLE discount_codes ADD COLUMN IF NOT EXISTS per_user_limit integer NULL",
+    )
+    await link.connect()
 
 
 async def test_without_the_alobot_migration_the_fields_are_not_offered(without_columns):

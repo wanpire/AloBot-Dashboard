@@ -1,89 +1,111 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "created" %}<div class="flash flash--ok">اپراتور ساخته شد.</div>{% elif notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
-<div class="card">
-  <table>
-    <thead><tr><th>ایمیل</th><th>نام</th><th>نقش</th><th>وضعیت</th><th>دومرحله‌ای</th><th></th></tr></thead>
-    <tbody>
+{% if notice == "created" %}{{ ui.toast("اپراتور ساخته شد.", tone="success") }}
+{% elif notice == "saved" %}{{ ui.toast("ذخیره شد.", tone="success") }}{% endif %}
+
+{% call ui.card() %}
+  {% call ui.table(["ایمیل", "نام", "نقش", "وضعیت", "دومرحله‌ای", ""]) %}
     {% for o in operators %}
-      <tr>
-        <td dir="ltr">{{ o.email }}</td>
-        <td>{{ o.display_name }}</td>
-        <td>
-          {% if o.id != operator.id %}
-          <form method="post" action="/access/{{ o.id }}/role" class="inline">
-            <select name="role" onchange="this.form.submit()">
-              {% for r in roles %}<option value="{{ r }}" {% if r == o.role %}selected{% endif %}>{{ r }}</option>{% endfor %}
-            </select>
-          </form>
-          {% else %}<span class="badge">{{ o.role }}</span> <span class="hint">(شما)</span>{% endif %}
-        </td>
-        <td>{{ "فعال" if o.is_active else "غیرفعال" }}</td>
-        <td>{{ "فعال" if o.totp_confirmed_at else "—" }}</td>
-        <td>
-          {% if o.id != operator.id %}
-          <form method="post" action="/access/{{ o.id }}/active" class="inline">
-            <input type="hidden" name="active" value="{{ '0' if o.is_active else '1' }}">
-            <button class="btn" type="submit">{{ "غیرفعال کن" if o.is_active else "فعال کن" }}</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
+    {% call ui.row() %}
+      {% call ui.cell("ایمیل") %}<span dir="ltr">{{ o.email }}</span>{% endcall %}
+      {% call ui.cell("نام") %}{{ o.display_name }}{% endcall %}
+      {% call ui.cell("نقش") %}
+        {% if o.id != operator.id %}
+        <form method="post" action="/access/{{ o.id }}/role" class="d-inline">
+          {% set role_options = [] %}
+          {% for r in roles %}{% set _ = role_options.append((r, r)) %}{% endfor %}
+          {{ ui.inline_select("role", role_options, value=o.role, attrs={"onchange": "this.form.submit()"}) }}
+        </form>
+        {% else %}{{ ui.state_badge(o.role, family="role") }} <span class="text-secondary">(شما)</span>{% endif %}
+      {% endcall %}
+      {% call ui.cell("وضعیت") %}{{ "فعال" if o.is_active else "غیرفعال" }}{% endcall %}
+      {% call ui.cell("دومرحله‌ای") %}{{ "فعال" if o.totp_confirmed_at else "—" }}{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if o.id != operator.id %}
+        <form method="post" action="/access/{{ o.id }}/active">
+          <input type="hidden" name="active" value="{{ '0' if o.is_active else '1' }}">
+          {{ ui.btn("غیرفعال کن" if o.is_active else "فعال کن", size="sm", type="submit") }}
+        </form>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
     {% endfor %}
-    </tbody>
-  </table>
-</div>
-<div class="card" style="margin-top:16px">
-  <h2>اپراتور جدید</h2>
+  {% endcall %}
+{% endcall %}
+
+<div class="mt-3">
+{% call ui.card("اپراتور جدید") %}
+  {% set role_options = [] %}
+  {% for r in roles %}{% set _ = role_options.append((r, r)) %}{% endfor %}
   <form method="post" action="/access">
-    <label>ایمیل <input type="email" name="email" required></label>
-    <label>نام نمایشی <input type="text" name="display_name"></label>
-    <label>رمز عبور اولیه <input type="password" name="password" minlength="12" required autocomplete="new-password"></label>
-    <label>نقش
-      <select name="role">{% for r in roles %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select>
-      <span class="hint">ADMIN همه‌چیز · REVIEWER بررسی پرداخت‌ها · READ_ONLY فقط خواندن</span>
-    </label>
-    <button class="btn btn--primary" type="submit">ساختن</button>
+    <div class="row g-2">
+      <div class="col-12 col-md-4">{{ ui.field("email", "ایمیل", type="email", required=True) }}</div>
+      <div class="col-12 col-md-4">{{ ui.field("display_name", "نام نمایشی") }}</div>
+      <div class="col-12 col-md-4">{{ ui.field("password", "رمز عبور اولیه", type="password", required=True, attrs={"minlength": "12", "autocomplete": "new-password"}) }}</div>
+      <div class="col-12 col-md-6">{{ ui.field("role", "نقش", options=role_options, hint="ADMIN همه‌چیز · REVIEWER بررسی پرداخت‌ها · READ_ONLY فقط خواندن") }}</div>
+    </div>
+    {{ ui.btn("ساختن", tone="primary", type="submit") }}
   </form>
+{% endcall %}
 </div>
 
-<div class="card" style="margin-top:24px">
-  <h2>ادمین‌های ربات آلوبات</h2>
+<div class="mt-3">
+{% call ui.card("ادمین‌های ربات آلوبات") %}
   {% if not alobot_available %}
-    <p class="hint">پایگاه‌دادهٔ آلوبات متصل نیست.</p>
+  <p class="text-secondary">پایگاه‌دادهٔ آلوبات متصل نیست.</p>
   {% else %}
-  <p class="hint">این‌ها کسانی‌اند که در <b>خود تلگرام</b> پنل مدیریت ربات را می‌بینند — جدا از اپراتورهای همین داشبورد بالا. سه سطح پلکانی است: پشتیبانی &lt; فروش &lt; مدیر کامل.</p>
-  <table>
-    <thead><tr><th>شناسهٔ تلگرام</th><th>سطح</th><th>بررسی‌کنندهٔ پرداخت</th><th>از تاریخ</th><th></th></tr></thead>
-    <tbody>
+  <p class="text-secondary">این‌ها کسانی‌اند که در <b>خود تلگرام</b> پنل مدیریت ربات را می‌بینند — جدا از اپراتورهای همین داشبورد بالا. سه سطح پلکانی است: پشتیبانی &lt; فروش &lt; مدیر کامل.</p>
+  {% if bot_admins %}
+  {% call ui.table(["شناسهٔ تلگرام", "سطح", "بررسی‌کنندهٔ پرداخت", "از تاریخ", ""]) %}
     {% for a in bot_admins %}
-      <tr>
-        <td dir="ltr">{{ a.telegram_id }}</td>
-        <td>{% if alobot_writes %}
-          <form method="post" action="/access/bot-admins/{{ a.telegram_id }}/level" class="inline">
-            <select name="level" onchange="this.form.submit()">{% for l in bot_levels %}<option value="{{ l }}" {% if l == a.level %}selected{% endif %}>{{ bot_level_labels[l] }}</option>{% endfor %}</select>
-          </form>
-        {% else %}{{ bot_level_labels.get(a.level, a.level) }}{% endif %}</td>
-        <td>
-          {% if a.telegram_id in reviewers %}<span class="badge">انتخاب‌شده</span>{% elif reviewers %}<span class="hint">—</span>{% else %}<span class="hint">همه</span>{% endif %}
-          {% if alobot_writes %}<form method="post" action="/access/reviewers/{{ a.telegram_id }}" class="inline"><button class="btn" type="submit">{{ "بردار" if a.telegram_id in reviewers else "انتخاب" }}</button></form>{% endif %}
-        </td>
-        <td>{{ a.created_at | jalali_dt }}</td>
-        <td>{% if alobot_writes %}<form method="post" action="/access/bot-admins/{{ a.telegram_id }}/remove" class="inline"><button class="btn btn--ghost" type="submit">حذف</button></form>{% endif %}</td>
-      </tr>
-    {% else %}<tr><td colspan="5" class="hint">ادمینی ثبت نشده.</td></tr>{% endfor %}
-    </tbody>
-  </table>
-  <p class="hint">{% if reviewers %}فقط {{ reviewers | length | fa_number }} ادمین انتخاب‌شده می‌توانند پرداخت‌های کارت‌به‌کارت را در ربات ببینند و تصمیم بگیرند.{% else %}هیچ محدودیتی تنظیم نشده، یعنی <b>همهٔ</b> ادمین‌ها می‌توانند پرداخت‌ها را ببینند و تایید کنند — این پیش‌فرض خود آلوبات است.{% endif %}</p>
-  {% if alobot_writes and reviewers %}<form method="post" action="/access/reviewers/reset" class="inline"><button class="btn" type="submit">بازگشت به «همهٔ ادمین‌ها»</button></form>{% endif %}
+    {% call ui.row() %}
+      {% call ui.cell("شناسهٔ تلگرام") %}<span dir="ltr">{{ a.telegram_id }}</span>{% endcall %}
+      {% call ui.cell("سطح") %}
+        {% if alobot_writes %}
+        <form method="post" action="/access/bot-admins/{{ a.telegram_id }}/level" class="d-inline">
+          {% set level_options = [] %}
+          {% for l in bot_levels %}{% set _ = level_options.append((l, bot_level_labels[l])) %}{% endfor %}
+          {{ ui.inline_select("level", level_options, value=a.level, attrs={"onchange": "this.form.submit()"}) }}
+        </form>
+        {% else %}{{ bot_level_labels.get(a.level, a.level) }}{% endif %}
+      {% endcall %}
+      {% call ui.cell("بررسی‌کنندهٔ پرداخت") %}
+        {% if a.telegram_id in reviewers %}{{ ui.state_badge("", label="انتخاب‌شده") }}
+        {% elif reviewers %}<span class="text-secondary">—</span>
+        {% else %}<span class="text-secondary">همه</span>{% endif %}
+        {% if alobot_writes %}
+        <form method="post" action="/access/reviewers/{{ a.telegram_id }}" class="d-inline">
+          {{ ui.btn("بردار" if a.telegram_id in reviewers else "انتخاب", size="sm", type="submit") }}
+        </form>
+        {% endif %}
+      {% endcall %}
+      {% call ui.cell("از تاریخ") %}{{ a.created_at | jalali_dt }}{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if alobot_writes %}
+        <form method="post" action="/access/bot-admins/{{ a.telegram_id }}/remove">{{ ui.btn("حذف", size="sm", type="submit") }}</form>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("ادمینی ثبت نشده.") }}{% endif %}
+
+  <p class="text-secondary">{% if reviewers %}فقط {{ reviewers | length | fa_number }} ادمین انتخاب‌شده می‌توانند پرداخت‌های کارت‌به‌کارت را در ربات ببینند و تصمیم بگیرند.{% else %}هیچ محدودیتی تنظیم نشده، یعنی <b>همهٔ</b> ادمین‌ها می‌توانند پرداخت‌ها را ببینند و تایید کنند — این پیش‌فرض خود آلوبات است.{% endif %}</p>
+  {% if alobot_writes and reviewers %}
+  <form method="post" action="/access/reviewers/reset" class="d-inline">{{ ui.btn("بازگشت به «همهٔ ادمین‌ها»", type="submit") }}</form>
+  {% endif %}
+
   {% if alobot_writes %}
-  <h3 style="margin-top:12px">ادمین جدید ربات</h3>
-  <form method="post" action="/access/bot-admins" class="filters">
-    <label>شناسهٔ تلگرام <input type="text" name="telegram_id" dir="ltr" inputmode="numeric" required></label>
-    <label>سطح <select name="level">{% for l in bot_levels %}<option value="{{ l }}">{{ bot_level_labels[l] }}</option>{% endfor %}</select></label>
-    <button class="btn" type="submit">افزودن</button>
-  </form>
+  <h3>ادمین جدید ربات</h3>
+  {% set level_options = [] %}
+  {% for l in bot_levels %}{% set _ = level_options.append((l, bot_level_labels[l])) %}{% endfor %}
+  {% call ui.filter_form("/access/bot-admins", submit_label="افزودن", method="post") %}
+    <div class="col-12 col-md-4">{{ ui.field("telegram_id", "شناسهٔ تلگرام", required=True, attrs={"dir": "ltr", "inputmode": "numeric"}) }}</div>
+    <div class="col-12 col-md-4">{{ ui.field("level", "سطح", options=level_options) }}</div>
+  {% endcall %}
   {% endif %}
   {% endif %}
+{% endcall %}
 </div>
 {% endblock %}
