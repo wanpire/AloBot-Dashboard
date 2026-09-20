@@ -1,0 +1,46 @@
+/* Loaded only by base_v2.html. The existing pages keep app.css untouched.
+   Two jobs: point Tabler at the self-hosted font, and the handful of shell
+   rules Tabler has no class for. Nothing here restyles a page's contents. */
+
+@font-face {
+  font-family: "Vazirmatn";
+  /* One variable file covers 100-900, which is fewer bytes than three cuts. */
+  src: url("/static/vendor/vazirmatn/vazirmatn-variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --tblr-font-family-sans-serif: "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Persian text sits low in the line box; a touch more leading makes long
+     Persian labels readable without changing any Tabler spacing scale. */
+  --tblr-body-line-height: 1.7;
+}
+
+body {
+  font-family: var(--tblr-font-family-sans-serif);
+}
+
+/* Persian and Arabic digits render with Latin-ish figures in some fallbacks;
+   keep numerals tabular so counts in the sidebar do not jitter as they change. */
+.badge, .navbar-vertical .nav-link-title {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The sidebar group headers are buttons, not links: strip the affordances a
+   link carries so they do not read as destinations of their own. */
+.nav-group-toggle {
+  background: none;
+  border: 0;
+  width: 100%;
+  text-align: start;
+}
+
+/* The chevron points at the group and turns when it opens. */
+.nav-group-toggle .nav-group-caret {
+  transition: transform .15s ease-in-out;
+}
+.nav-group-toggle[aria-expanded="true"] .nav-group-caret {
+  transform: rotate(90deg);
+}

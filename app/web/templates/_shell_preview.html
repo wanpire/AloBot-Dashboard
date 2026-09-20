@@ -1,0 +1,65 @@
+{#
+  Throwaway. Exists only so the shell can be looked at before any real screen
+  adopts it, and so a test can prove base_v2 renders. Nothing routes here and
+  no real screen extends it; it will be deleted once a page is actually
+  converted.
+#}
+{% extends "base_v2.html" %}
+{% block content %}
+<div class="row row-cards">
+  <div class="col-12">
+    <div class="alert alert-info" role="alert">
+      این صفحه فقط برای دیدن قالب تازه است. هیچ صفحهٔ واقعی هنوز از آن استفاده نمی‌کند.
+    </div>
+  </div>
+
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body">
+      <div class="subheader">در انتظار بررسی</div>
+      <div class="h1 mb-0">{{ 12 | fa_number }}</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body">
+      <div class="subheader">تایید خودکار امروز</div>
+      <div class="h1 mb-0">{{ 87 | fa_number }}٪</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body">
+      <div class="subheader">واریزهای بی‌صاحب</div>
+      <div class="h1 mb-0">{{ 3 | fa_number }}</div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card"><div class="card-body">
+      <div class="subheader">مبلغ امروز</div>
+      <div class="h1 mb-0">{{ 12500000 | toman }}</div>
+    </div></div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">نمونهٔ جدول</h3></div>
+      <div class="table-responsive">
+        <table class="table card-table table-vcenter">
+          <thead><tr><th>مشتری</th><th>مبلغ</th><th>زمان</th><th>وضعیت</th><th></th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td>{{ row.amount | toman }}</td>
+              <td>{{ row.at | jalali_dt }}</td>
+              <td><span class="badge bg-{{ row.tone }} text-{{ row.tone }}-fg">{{ row.state }}</span></td>
+              <td class="text-end">
+                <button class="btn btn-sm" type="button" data-bs-toggle="tooltip" title="فقط نمونه است">بررسی</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
