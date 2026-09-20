@@ -35,6 +35,12 @@ os.environ.setdefault("ALOBOT_DB_WRITES_ENABLED", "true")
 # The only AloBot tables this project may ever write. Anything else stays
 # SELECT-only even for the write role - that is what makes "the dashboard
 # cannot touch payments or vpn_users" a privilege, not a promise.
+# Phase 7: column-scoped access, so "the dashboard cannot read or change a
+# customer's details" stays true while blocking one is possible.
+ALOBOT_COLUMN_GRANTS = (
+    "GRANT INSERT (telegram_id, is_blocked), UPDATE (is_blocked) ON bot_users TO dashboard_rw",
+)
+
 ALOBOT_WRITABLE_TABLES = (
     "services", "service_locations", "app_config", "discount_codes",
     "tutorial_platforms", "tutorial_protocols", "tutorial_guides",
@@ -118,6 +124,11 @@ def alobot_copy_schema():
             await conn.execute("GRANT SELECT ON ALL TABLES IN SCHEMA public TO dashboard_ro, dashboard_rw")
             for table in ALOBOT_WRITABLE_TABLES:
                 await conn.execute(f"GRANT INSERT, UPDATE, DELETE ON {table} TO dashboard_rw")
+            # Phase 7 adds two COLUMN-level grants and nothing wider: the
+            # dashboard may flip a customer's block flag and move a reseller's
+            # balance, and may not touch another column of either table.
+            for grant in ALOBOT_COLUMN_GRANTS:
+                await conn.execute(grant)
             await conn.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO dashboard_rw")
         finally:
             await conn.close()

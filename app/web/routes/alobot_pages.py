@@ -84,7 +84,13 @@ async def customer(request: Request, telegram_id: int, operator=Depends(page("cu
         data = await queries.customer(s, telegram_id)
     if data is None:
         return render(request, "customer.html", page_id="customers", status_code=404, telegram_id=telegram_id, missing=True, **_ctx())
-    return render(request, "customer.html", page_id="customers", telegram_id=telegram_id, missing=False, **_ctx(**data))
+    # AloBot's middleware exempts admins and resellers from blocking, so the
+    # page says why there is no control rather than offering a dead one.
+    exempt = "ادمین ربات" if data.get("is_admin") else ("نمایندهٔ فروش" if data.get("reseller") else None)
+    return render(
+        request, "customer.html", page_id="customers", telegram_id=telegram_id, missing=False,
+        exempt=exempt, error=request.query_params.get("error"), **_ctx(**data),
+    )
 
 
 @router.get("/orders")

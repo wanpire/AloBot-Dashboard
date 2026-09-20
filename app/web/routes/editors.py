@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from urllib.parse import quote
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -24,6 +25,7 @@ from app.alobot.link import link
 from app.alobot.writes import WritesDisabled, writes
 from app.alobot.writes import admins as admin_writes
 from app.alobot.writes import botsettings as botsettings_writes
+from app.alobot.writes import botusers as botusers_writes
 from app.alobot.writes import catalog as catalog_writes
 from app.alobot.writes import content as content_writes
 from app.alobot.writes import cron as cron_writes
@@ -38,6 +40,7 @@ ADMIN = require_role("ADMIN")
 EDIT_ERRORS = (
     WritesDisabled, catalog_writes.CatalogError, discount_writes.DiscountError, content_writes.ContentError,
     botsettings_writes.SettingsError, admin_writes.AdminError, cron_writes.CronError, bot_content.ContentError,
+    botusers_writes.BotUserError,
     broadcast.BroadcastError,
 )
 
@@ -418,3 +421,26 @@ async def bulk_send(request: Request, batch_id: str = Form(""), audience: str = 
     except EDIT_ERRORS as exc:
         return await _bulk_page(request, db, 400, error=str(exc))
     return RedirectResponse(f"/bulk?id={broadcast_id}&notice=queued", status_code=303)
+
+
+# ── Blocking a customer out of the bot ─────────────────────────────────────
+
+
+async def _customer_action(request: Request, db: AsyncSession, telegram_id: int, action, operator):
+    """Both controls land back on the customer's own page, with the refusal
+    as a sentence when AloBot's rules say no."""
+    try:
+        await action(db, operator, telegram_id=telegram_id)
+    except EDIT_ERRORS as exc:
+        return RedirectResponse(f"/customers/{telegram_id}?error={quote(str(exc))}", status_code=303)
+    return RedirectResponse(f"/customers/{telegram_id}", status_code=303)
+
+
+@router.post("/customers/{telegram_id}/block")
+async def customer_block(request: Request, telegram_id: int, operator=Depends(ADMIN), db: AsyncSession = Depends(get_db)):
+    return await _customer_action(request, db, telegram_id, botusers_writes.block, operator)
+
+
+@router.post("/customers/{telegram_id}/unblock")
+async def customer_unblock(request: Request, telegram_id: int, operator=Depends(ADMIN), db: AsyncSession = Depends(get_db)):
+    return await _customer_action(request, db, telegram_id, botusers_writes.unblock, operator)

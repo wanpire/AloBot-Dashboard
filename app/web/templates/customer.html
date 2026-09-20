@@ -10,6 +10,24 @@
     {% if reseller %} · <span class="badge">نماینده</span> موجودی {{ reseller.balance | toman_amount }}، پورسانت {{ reseller.commission_percent | int | fa_number }}٪{% endif %}
   </p>
 </div>
+{% if operator.role == "ADMIN" %}
+<div class="card" style="margin-top:16px">
+  <h3>دسترسی به ربات</h3>
+  {% if exempt %}
+  <p class="hint">این شناسه {{ exempt }} است و آلوبات این افراد را از مسدودسازی مستثنا می‌کند؛ مسدود کردنش هیچ اثری نمی‌داشت، پس دکمه‌ای هم نیست.</p>
+  {% else %}
+  <p class="hint">
+    مسدودسازی فقط درِ ربات را می‌بندد: کاربر پیام «دسترسی شما مسدود شده» می‌گیرد و هیچ دکمه‌ای برایش کار نمی‌کند.
+    <b>سرویس فعالش قطع نمی‌شود</b> و تا تاریخ انقضا کار می‌کند؛ این پنل هرگز با IBSng کار نمی‌کند.
+  </p>
+  {% if user and user.is_blocked %}
+  <form method="post" action="/customers/{{ telegram_id }}/unblock" class="inline"><button class="btn" type="submit">رفع مسدودی</button></form>
+  {% else %}
+  <form method="post" action="/customers/{{ telegram_id }}/block" class="inline"><button class="btn" type="submit">مسدود کردن در ربات</button></form>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
 <div class="card" style="margin-top:16px">
   <h3>اکانت‌ها</h3>
   <table>

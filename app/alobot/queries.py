@@ -189,7 +189,11 @@ async def customer(session: AsyncSession, telegram_id: int) -> dict[str, Any] | 
     )
     if user is None and not accounts and not payments:
         return None
-    return {"user": user, "reseller": reseller, "accounts": accounts, "payments": payments}
+    # Whether AloBot's blocked-user middleware would exempt this person: it
+    # lets every admin and every reseller through before it looks at the flag.
+    a = link.t("admin_users")
+    is_admin = (await session.execute(select(a.c.id).where(a.c.telegram_id == telegram_id))).first() is not None
+    return {"user": user, "reseller": reseller, "accounts": accounts, "payments": payments, "is_admin": is_admin}
 
 
 async def orders(
