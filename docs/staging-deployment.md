@@ -105,6 +105,33 @@ Nothing here runs without that go-ahead.
 10. `python scripts/demo_setup.py --url https://<hostname>` and walk
     `docs/DEMO.md` end to end.
 
+## As deployed
+
+Live on `bot.wanpire.net` (51.68.59.237), in `/home/peyman/AloBot-Dashboard`,
+beside AloBot and dns-switcher and touching neither.
+
+| | |
+|---|---|
+| Containers | `alobot-dashboard`, `alobot-dashboard-db`, on their own two networks |
+| Exposure | the app binds `127.0.0.1:8090` only; nginx holds :80 for `panel.alonet.co` |
+| AloBot data | a restored copy in the dashboard's own Postgres, read through `dashboard_ro` |
+| AloBot writes | off (`ALOBOT_DB_WRITES_ENABLED=false`, no write URL) |
+| AloBot's token | not present, so receipt images and customer messages stay off |
+| Operator | one ADMIN, password set at creation and changeable in the panel |
+
+**Waiting on DNS.** `panel.alonet.co` still resolves to 51.38.251.33; this
+host is 51.68.59.237. The vhost is in place and answers over HTTP, and the
+certificate can be issued with `certbot --nginx -d panel.alonet.co` as soon as
+the A record moves. Until then the panel cannot actually be used, because the
+session cookie is `Secure` and a browser will not send it over plain HTTP -
+which is the correct behaviour outside a relaxed environment, not a fault.
+
+**The teardown was tested, not just written down.** `docker compose down -v`
+removed both containers, the data volume and both networks, leaving nothing
+behind; AloBot and dns-switcher kept their uptimes, unrestarted and
+unmodified. The stack was then rebuilt from that blank state through the
+documented steps, which is how the procedure above is known to work.
+
 ## Rolling it back
 
 `docker compose down -v` in the staging directory, delete the directory,
