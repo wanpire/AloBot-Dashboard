@@ -1,68 +1,136 @@
-{% extends "base.html" %}
+{% extends "base_v2.html" %}
+{% import "_ui.html" as ui with context %}
 {% block content %}
-{% if notice == "saved" %}<div class="flash flash--ok">ذخیره شد.</div>{% endif %}
-<div class="card">
-  <a class="btn{% if view == 'list' %} btn--primary{% endif %}" href="/transactions">تراکنش‌ها</a>
-  <a class="btn{% if view == 'unparsed' %} btn--primary{% endif %}" href="/transactions?view=unparsed">خوانده‌نشده‌ها</a>
-  <a class="btn{% if view == 'coverage' %} btn--primary{% endif %}" href="/transactions?view=coverage">پوشش پارسر</a>
-</div>
+{% if notice == "saved" %}{{ ui.toast("ذخیره شد.", tone="success") }}{% endif %}
+
+{% call ui.card() %}
+  <div class="d-flex flex-wrap gap-2">
+    {{ ui.btn("تراکنش‌ها", tone="primary" if view == "list" else "", href="/transactions") }}
+    {{ ui.btn("خوانده‌نشده‌ها", tone="primary" if view == "unparsed" else "", href="/transactions?view=unparsed") }}
+    {{ ui.btn("پوشش پارسر", tone="primary" if view == "coverage" else "", href="/transactions?view=coverage") }}
+  </div>
+{% endcall %}
+
 {% if view == "unparsed" %}
-<div class="card" style="margin-top:16px">
-  <h2>پیامک‌هایی که هیچ پارسری نخواند</h2>
-  {% if reparse %}<div class="flash">{{ "اعمال شد" if reparse.mode == "apply" else "پیش‌نمایش" }}: از {{ reparse.examined | fa_number }} پیامک، {{ reparse.changed | fa_number }} پیامک با پارسر فعلی خوانده {{ "شد" if reparse.mode == "apply" else "می‌شود" }}.</div>{% endif %}
-  {% if operator.role == "ADMIN" %}
-  <form method="post" action="/transactions/reparse" class="filters"><input type="hidden" name="mode" value="dry-run"><button class="btn" type="submit">پیش‌نمایش بازخوانی با الگوهای فعلی</button></form>
-  <form method="post" action="/transactions/reparse" class="filters"><input type="hidden" name="mode" value="apply"><button class="btn btn--primary" type="submit">بازخوانی و اعمال</button></form>
+<div class="mt-3">
+{% call ui.card("پیامک‌هایی که هیچ پارسری نخواند") %}
+  {% if reparse %}
+  {{ ui.toast(("اعمال شد" if reparse.mode == "apply" else "پیش‌نمایش") ~ ": از " ~ (reparse.examined | fa_number) ~ " پیامک، " ~ (reparse.changed | fa_number) ~ " پیامک با پارسر فعلی خوانده " ~ ("شد" if reparse.mode == "apply" else "می‌شود") ~ ".", tone="info") }}
   {% endif %}
-  <table>
-    <thead><tr><th>زمان</th><th>فرستنده</th><th>دستگاه</th><th>متن</th></tr></thead>
-    <tbody>{% for ev, device in events %}<tr><td>{{ ev.sms_timestamp | jalali_dt }}</td><td dir="ltr">{{ ev.sender }}</td><td dir="ltr">{{ device.code }}</td><td dir="auto"><pre>{{ ev.body }}</pre></td></tr>{% else %}<tr><td colspan="4" class="hint">همه‌چیز خوانده شده.</td></tr>{% endfor %}</tbody>
-  </table>
+  {% if operator.role == "ADMIN" %}
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <form method="post" action="/transactions/reparse"><input type="hidden" name="mode" value="dry-run">{{ ui.btn("پیش‌نمایش بازخوانی با الگوهای فعلی", type="submit") }}</form>
+    <form method="post" action="/transactions/reparse"><input type="hidden" name="mode" value="apply">{{ ui.btn("بازخوانی و اعمال", tone="primary", type="submit") }}</form>
+  </div>
+  {% endif %}
+  {% if events %}
+  {% call ui.table(["زمان", "فرستنده", "دستگاه", "متن"]) %}
+    {% for ev, device in events %}
+    {% call ui.row() %}
+      {% call ui.cell("زمان") %}{{ ev.sms_timestamp | jalali_dt }}{% endcall %}
+      {% call ui.cell("فرستنده") %}<span dir="ltr">{{ ev.sender }}</span>{% endcall %}
+      {% call ui.cell("دستگاه") %}<span dir="ltr">{{ device.code }}</span>{% endcall %}
+      {% call ui.cell("متن") %}{{ ui.code_block(ev.body) }}{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("همه‌چیز خوانده شده.") }}{% endif %}
+{% endcall %}
 </div>
+
 {% elif view == "coverage" %}
-<div class="card" style="margin-top:16px">
-  <h2>پوشش پارسر در {{ days | fa_number }} روز گذشته</h2>
-  <form method="get" action="/transactions" class="filters"><input type="hidden" name="view" value="coverage"><label>روز <input type="number" name="days" value="{{ days }}" min="1" max="365"></label><button class="btn" type="submit">اعمال</button></form>
-  <table>
-    <thead><tr><th>فرستنده</th><th>کل</th><th>تراکنش/مانده</th><th>رمز</th><th>تبلیغ</th><th>خوانده‌نشده</th><th>پوشش</th></tr></thead>
-    <tbody>{% for r in coverage %}<tr><td dir="ltr">{{ r.sender }}</td><td>{{ r.total | fa_number }}</td><td>{{ r.parsed | fa_number }}</td><td>{{ r.otp | fa_number }}</td><td>{{ r.promo | fa_number }}</td><td>{{ r.unknown | fa_number }}</td><td>{{ r.percent | fa_number }}٪</td></tr>{% else %}<tr><td colspan="7" class="hint">در این بازه پیامکی نرسیده.</td></tr>{% endfor %}</tbody>
-  </table>
+<div class="mt-3">
+{% call ui.card("پوشش پارسر در " ~ (days | fa_number) ~ " روز گذشته") %}
+  {% call ui.filter_form("/transactions") %}
+    <input type="hidden" name="view" value="coverage">
+    <div class="col-12 col-md-3">{{ ui.field("days", "روز", value=days, type="number", attrs={"min": "1", "max": "365"}) }}</div>
+  {% endcall %}
+  {% if coverage %}
+  {% call ui.table(["فرستنده", "کل", "تراکنش/مانده", "رمز", "تبلیغ", "خوانده‌نشده", "پوشش"]) %}
+    {% for r in coverage %}
+    {% call ui.row() %}
+      {% call ui.cell("فرستنده") %}<span dir="ltr">{{ r.sender }}</span>{% endcall %}
+      {% call ui.cell("کل") %}{{ r.total | fa_number }}{% endcall %}
+      {% call ui.cell("تراکنش/مانده") %}{{ r.parsed | fa_number }}{% endcall %}
+      {% call ui.cell("رمز") %}{{ r.otp | fa_number }}{% endcall %}
+      {% call ui.cell("تبلیغ") %}{{ r.promo | fa_number }}{% endcall %}
+      {% call ui.cell("خوانده‌نشده") %}{{ r.unknown | fa_number }}{% endcall %}
+      {% call ui.cell("پوشش") %}{{ r.percent | fa_number }}٪{% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
+  {% else %}{{ ui.empty_state("در این بازه پیامکی نرسیده.") }}{% endif %}
+{% endcall %}
 </div>
+
 {% else %}
-<div class="card" style="margin-top:16px">
-  <form method="get" action="/transactions" class="filters">
-    <label>جهت <select name="direction"><option value="">همه</option><option value="CREDIT" {% if filters.direction == "CREDIT" %}selected{% endif %}>واریز</option><option value="DEBIT" {% if filters.direction == "DEBIT" %}selected{% endif %}>برداشت</option><option value="UNKNOWN" {% if filters.direction == "UNKNOWN" %}selected{% endif %}>نامشخص</option></select></label>
-    <label>وضعیت <select name="disposition"><option value="">همه</option>{% for d in dispositions %}<option value="{{ d }}" {% if filters.disposition == d %}selected{% endif %}>{{ disposition_labels[d] }}</option>{% endfor %}</select></label>
-    <label>حساب <select name="account_id"><option value="">همه</option>{% for a in accounts %}<option value="{{ a.id }}" {% if filters.account_id == a.id %}selected{% endif %}>{{ a.display_name }}</option>{% endfor %}</select></label>
-    <label>جست‌وجو <input type="text" name="q" value="{{ filters.q or '' }}" placeholder="شمارهٔ پیگیری، ۴ رقم آخر، متن"></label>
-    <button class="btn" type="submit">اعمال</button>
-  </form>
+<div class="mt-3">
+{% call ui.card() %}
+  {% set account_options = [("", "همه")] %}
+  {% for a in accounts %}{% set _ = account_options.append((a.id, a.display_name)) %}{% endfor %}
+  {% set disposition_options = [("", "همه")] %}
+  {% for d in dispositions %}{% set _ = disposition_options.append((d, disposition_labels[d])) %}{% endfor %}
+  {% call ui.filter_form("/transactions") %}
+    <div class="col-12 col-md-2">{{ ui.field("direction", "جهت", value=filters.direction or "", options=[("", "همه"), ("CREDIT", "واریز"), ("DEBIT", "برداشت"), ("UNKNOWN", "نامشخص")]) }}</div>
+    <div class="col-12 col-md-2">{{ ui.field("disposition", "وضعیت", value=filters.disposition or "", options=disposition_options) }}</div>
+    <div class="col-12 col-md-3">{{ ui.field("account_id", "حساب", value=filters.account_id or "", options=account_options) }}</div>
+    <div class="col-12 col-md">{{ ui.field("q", "جست‌وجو", value=filters.q or "", attrs={"placeholder": "شمارهٔ پیگیری، ۴ رقم آخر، متن"}) }}</div>
+  {% endcall %}
+{% endcall %}
 </div>
-<div class="card" style="margin-top:16px">
-  <table>
-    <thead><tr><th>زمان بانک</th><th>جهت</th><th>مبلغ</th><th>مانده</th><th>حساب</th><th>شناسه</th><th>پیگیری</th><th>وضعیت</th><th>پارسر</th><th></th></tr></thead>
-    <tbody>
+
+<div class="mt-3">
+{% call ui.card() %}
+  {% if rows %}
+  {% call ui.table(["زمان بانک", "جهت", "مبلغ", "مانده", "حساب", "شناسه", "پیگیری", "وضعیت", "پارسر", ""]) %}
     {% for tx, ev, acct, device in rows %}
-      <tr>
-        <td>{{ tx.bank_timestamp | jalali_dt if tx.bank_timestamp else "—" }}</td>
-        <td>{{ {"CREDIT": "واریز", "DEBIT": "برداشت"}.get(tx.direction, "نامشخص") }}</td>
-        <td>{% if tx.amount_irr is not none %}{{ tx.amount_irr | toman }} <span class="hint">{{ tx.amount_irr | fa_number }} ریال</span>{% else %}—{% endif %}</td>
-        <td>{% if tx.balance_irr is not none %}{{ tx.balance_irr | fa_number }} ریال{% else %}—{% endif %}</td>
-        <td>{% if acct %}{{ acct.display_name }}{% if acct.status != "ACTIVE" %} <span class="badge">{{ acct.status }}</span>{% endif %}{% else %}—{% endif %}{% if tx.inferred_account_id %} <span class="hint">(حدس: زنجیرهٔ مانده)</span>{% endif %}</td>
-        <td dir="ltr">{{ tx.account_hint or "—" }}</td><td dir="ltr">{{ tx.reference or "—" }}</td>
-        <td>{{ disposition_labels[tx.disposition] }}{% if tx.disposition_note %} <span class="hint">{{ tx.disposition_note }}</span>{% endif %}</td>
-        <td dir="ltr" class="hint">{{ tx.parser_id }}</td>
-        <td>{% if operator.role == "ADMIN" %}<details><summary>عملیات</summary>
-          <form method="post" action="/transactions/{{ tx.id }}/account" class="inline"><select name="account_id"><option value="">بدون حساب</option>{% for a in accounts %}<option value="{{ a.id }}" {% if tx.account_id == a.id %}selected{% endif %}>{{ a.display_name }}</option>{% endfor %}</select><button class="btn" type="submit">تعیین حساب</button></form>
-          <form method="post" action="/transactions/{{ tx.id }}/disposition" class="inline"><select name="disposition">{% for d in dispositions %}<option value="{{ d }}" {% if tx.disposition == d %}selected{% endif %}>{{ disposition_labels[d] }}</option>{% endfor %}</select><input type="text" name="note" placeholder="دلیل" value="{{ tx.disposition_note or '' }}"><button class="btn" type="submit">ثبت</button></form>
-          <details><summary>متن پیامک</summary><pre dir="auto">{{ ev.body }}</pre><span class="hint" dir="ltr">{{ ev.sender }} · {{ device.code }}</span></details>
-        </details>{% endif %}</td>
-      </tr>
-    {% else %}<tr><td colspan="10" class="hint">تراکنشی با این فیلتر نیست.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+    {% call ui.row() %}
+      {% call ui.cell("زمان بانک") %}{{ tx.bank_timestamp | jalali_dt if tx.bank_timestamp else "—" }}{% endcall %}
+      {% call ui.cell("جهت") %}{{ ui.state_badge(tx.direction, family="direction", label={"CREDIT": "واریز", "DEBIT": "برداشت"}.get(tx.direction, "نامشخص")) }}{% endcall %}
+      {% call ui.cell("مبلغ") %}
+        {% if tx.amount_irr is not none %}{{ tx.amount_irr | toman }} <span class="text-secondary">{{ tx.amount_irr | fa_number }} ریال</span>{% else %}—{% endif %}
+      {% endcall %}
+      {% call ui.cell("مانده") %}{% if tx.balance_irr is not none %}{{ tx.balance_irr | fa_number }} ریال{% else %}—{% endif %}{% endcall %}
+      {% call ui.cell("حساب") %}
+        {% if acct %}{{ acct.display_name }}{% if acct.status != "ACTIVE" %} {{ ui.state_badge(acct.status, family="account", label=acct.status) }}{% endif %}{% else %}—{% endif %}
+        {% if tx.inferred_account_id %} <span class="text-secondary">(حدس: زنجیرهٔ مانده)</span>{% endif %}
+      {% endcall %}
+      {% call ui.cell("شناسه") %}<span dir="ltr">{{ tx.account_hint or "—" }}</span>{% endcall %}
+      {% call ui.cell("پیگیری") %}<span dir="ltr">{{ tx.reference or "—" }}</span>{% endcall %}
+      {% call ui.cell("وضعیت") %}
+        {{ ui.state_badge(tx.disposition, family="disposition", label=disposition_labels[tx.disposition]) }}{% if tx.disposition_note %} <span class="text-secondary">{{ tx.disposition_note }}</span>{% endif %}
+      {% endcall %}
+      {% call ui.cell("پارسر") %}<span class="text-secondary" dir="ltr">{{ tx.parser_id }}</span>{% endcall %}
+      {% call ui.actions_cell() %}
+        {% if operator.role == "ADMIN" %}
+        <details class="w-100"><summary class="text-primary">عملیات</summary>
+          {% set assign_options = [("", "بدون حساب")] %}
+          {% for a in accounts %}{% set _ = assign_options.append((a.id, a.display_name)) %}{% endfor %}
+          <form method="post" action="/transactions/{{ tx.id }}/account" class="d-flex gap-1 mt-2">
+            {{ ui.inline_select("account_id", assign_options, value=tx.account_id or "") }}
+            {{ ui.btn("تعیین حساب", size="sm", type="submit") }}
+          </form>
+          <form method="post" action="/transactions/{{ tx.id }}/disposition" class="d-flex flex-wrap gap-1 mt-2">
+            {% set disp_options = [] %}
+            {% for d in dispositions %}{% set _ = disp_options.append((d, disposition_labels[d])) %}{% endfor %}
+            {{ ui.inline_select("disposition", disp_options, value=tx.disposition) }}
+            {{ ui.inline_input("note", placeholder="دلیل", value=tx.disposition_note or "") }}
+            {{ ui.btn("ثبت", size="sm", type="submit") }}
+          </form>
+          <details class="mt-2"><summary class="text-primary">متن پیامک</summary>
+            {{ ui.code_block(ev.body) }}
+            <span class="text-secondary" dir="ltr">{{ ev.sender }} · {{ device.code }}</span>
+          </details>
+        </details>
+        {% endif %}
+      {% endcall %}
+    {% endcall %}
+    {% endfor %}
+  {% endcall %}
   {% set query_string = "direction=" ~ (filters.direction or "") ~ "&disposition=" ~ (filters.disposition or "") ~ "&account_id=" ~ (filters.account_id or "") ~ "&q=" ~ (filters.q or "") ~ "&" %}
-  {% include "_pager.html" %}
+  {{ ui.pager(total, page, page_size, query_string) }}
+  {% else %}{{ ui.empty_state("تراکنشی با این فیلتر نیست.") }}{% endif %}
+{% endcall %}
 </div>
 {% endif %}
 {% endblock %}

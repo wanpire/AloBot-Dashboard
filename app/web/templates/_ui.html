@@ -154,6 +154,15 @@
 </div>
 {%- endmacro -%}
 
+{#
+  A card's heading when it is more than a string - a name with a status badge
+  and a subtitle beside it. `card(title=...)` covers the plain case; this is
+  for the rest, so a screen never writes the heading class itself.
+#}
+{%- macro card_title(level=2, attrs=None) -%}
+<h{{ level }}{{ _attrs(attrs, kwargs, "card-title") }}>{{ caller() }}</h{{ level }}>
+{%- endmacro -%}
+
 {%- macro stat_tile(label, value, hint="", tone="", attrs=None) -%}
 <div{{ _attrs(attrs, kwargs, "card") }}>
   <div class="card-body">
@@ -268,8 +277,10 @@
 
 {%- macro inline_select(name, options, value="", size="sm", attrs=None) -%}
 <select name="{{ name }}"{{ _attrs(attrs, kwargs, "form-select" ~ (" form-select-" ~ size if size else "")) }}>
-  {% for option_value, option_label, option_title in options %}
-  <option value="{{ option_value }}"{% if option_title %} title="{{ option_title }}"{% endif %}{% if option_value == value %} selected{% endif %}>{{ option_label }}</option>
+  {# Options are (value, label) or (value, label, title): the title is what a
+     message template's body is shown as on hover, and most selects have none. #}
+  {% for option in options %}
+  <option value="{{ option[0] }}"{% if option | length > 2 and option[2] %} title="{{ option[2] }}"{% endif %}{% if option[0] == value %} selected{% endif %}>{{ option[1] }}</option>
   {% endfor %}
 </select>
 {%- endmacro -%}
@@ -305,6 +316,14 @@
   <div>{{ message }}</div>
   {% if dismissible %}<a class="btn-close" data-bs-dismiss="alert" aria-label="بستن"></a>{% endif %}
 </div>
+{%- endmacro -%}
+
+{#
+  Text that must be read exactly as it arrived - a bank SMS, a regular
+  expression - so it wraps rather than scrolls, and keeps its own direction.
+#}
+{%- macro code_block(content, dir="auto", attrs=None) -%}
+<pre dir="{{ dir }}"{{ _attrs(attrs, kwargs, "ui-code mb-0") }}>{{ content }}</pre>
 {%- endmacro -%}
 
 {#
