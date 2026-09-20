@@ -425,7 +425,27 @@ Phase 6 (hardening, demo, staging) - done except the staging deployment:
   prints the bank SMS that settles each open payment; the walkthrough was
   run end to end before it was written.
 
-Next: the staging deployment on the production host (Phase 6 task 5) needs
-the owner's explicit go-ahead - it is the first thing in this project that
-touches that host, and it wants a copy of real customer data. After that,
-Phase 7 is the only work that touches AloBot, task by task.
+Scope audit (`docs/scope-audit.md`) - done: every item in the relevance
+report's "directly relevant" list walked against the code, with a verdict
+each. It found four gaps that nothing was testing for, all now closed: a
+credit the matcher had not suggested could not be attached to a payment at
+all; the account balance every bank SMS carries was stored and never shown;
+the bell's count was correct only at page load and never made a sound; and
+sixteen sections pushed a phone screen sideways. The audit also writes down
+which items wait for Phase 7 (customer block and direct message, reseller
+top-up, discount expiry and per-user limit, the receipt image) and which are
+deliberately absent (anything needing an IBSng call, and the receipt
+reminder AloBot's data model makes impossible).
+
+Deferred by the owner, not forgotten:
+
+- **The staging deployment** (Phase 6 task 5) and its three questions -
+  how to handle real customer data in the copy, a throwaway bot token, and
+  the hostname. Written up in `docs/staging-deployment.md`, waiting.
+- **Real bank SMS samples.** `tests/sms_corpus/` stays provisional and
+  synthetic; the generic parser and the operator pattern editor are the
+  coverage until real messages arrive.
+
+Next: Phase 7 is the only work left, and it is the only work that touches
+AloBot. Every task in it needs its own go-ahead, its own run of AloBot's
+test suite, and no restart of the live bot without that being flagged.

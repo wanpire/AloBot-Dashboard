@@ -349,6 +349,17 @@ so the reset button 422'd; fixed and pinned by a test.
 
 Exit criteria: owner sign-off on the staging demo.
 
+**Deferred by the owner:** the staging deployment and its three questions
+wait (`docs/staging-deployment.md`), and so do real bank SMS samples - the
+synthetic corpus stays in use meanwhile. Everything else in this phase is
+done.
+
+**Scope audit** (`docs/scope-audit.md`), done after the phase: every
+"directly relevant" item in the relevance report held against the code. Four
+gaps found and closed - attaching a credit the matcher did not suggest, the
+bank's reported balance, a bell that polls and beeps, and a layout that fits
+a phone. The rest of the list is either built or explicitly Phase 7.
+
 ---
 
 ## Phase 7 — AloBot integration (LAST; each task needs its own go-ahead)
