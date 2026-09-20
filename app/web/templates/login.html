@@ -4,14 +4,14 @@
 <div class="card card--login">
   <h1>ورود به داشبورد</h1>
   {% if notice %}<div class="flash">{{ notice }}</div>{% endif %}
-  {% if error %}<div class="flash flash--err">{{ error }}</div>{% endif %}
+  {% if error %}<div class="flash flash--err" data-testid="login-error">{{ error }}</div>{% endif %}
   <form method="post" action="/login">
-    <label>ایمیل <input type="email" name="email" value="{{ email or '' }}" autocomplete="username" required autofocus></label>
-    <label>رمز عبور <input type="password" name="password" autocomplete="current-password" required></label>
+    <label>ایمیل <input type="email" name="email" value="{{ email or '' }}" autocomplete="username" required autofocus data-testid="login-email"></label>
+    <label>رمز عبور <input type="password" name="password" autocomplete="current-password" required data-testid="login-password"></label>
     {% if needs_totp %}
     <label>کد دومرحله‌ای <input type="text" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" required></label>
     {% endif %}
-    <button class="btn btn--primary" type="submit">ورود</button>
+    <button class="btn btn--primary" type="submit" data-testid="login-submit">ورود</button>
   </form>
 </div>
 {% endblock %}

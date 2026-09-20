@@ -17,8 +17,8 @@
         <td>{% if device.last_auth_failure_at %}{{ device.last_auth_failure_at | jalali_dt }}{% else %}—{% endif %}</td>
         <td>
           {% if operator.role == "ADMIN" %}
-          <details><summary>عملیات</summary>
-            <form method="post" action="/devices/{{ device.id }}/rotate" class="inline"><label><input type="checkbox" name="confirm" value="1"> می‌دانم توکن فعلی همان لحظه از کار می‌افتد</label><button class="btn" type="submit">چرخاندن توکن</button></form>
+          <details><summary data-testid="device-actions-summary">عملیات</summary>
+            <form method="post" action="/devices/{{ device.id }}/rotate" class="inline" data-testid="device-rotate-form"><label><input type="checkbox" name="confirm" value="1" data-testid="device-rotate-confirm"> می‌دانم توکن فعلی همان لحظه از کار می‌افتد</label><button class="btn" type="submit" data-testid="device-rotate-btn">چرخاندن توکن</button></form>
             <form method="post" action="/devices/{{ device.id }}/revoke" class="inline"><label><input type="checkbox" name="confirm" value="1"> می‌دانم پیامک‌های این گوشی قطع می‌شود</label><button class="btn" type="submit">ابطال توکن</button></form>
             <form method="post" action="/devices/{{ device.id }}/active" class="inline"><input type="hidden" name="active" value="{{ '0' if device.is_active else '1' }}"><button class="btn" type="submit">{{ "غیرفعال کن" if device.is_active else "فعال کن" }}</button></form>
             <form method="post" action="/devices/{{ device.id }}/rename" class="inline"><input type="text" name="display_name" value="{{ device.display_name }}"><button class="btn" type="submit">تغییر نام</button></form>
@@ -34,9 +34,9 @@
 <div class="card" style="margin-top:16px">
   <h2>دستگاه جدید</h2>
   <form method="post" action="/devices">
-    <label>کد دستگاه <input type="text" name="code" placeholder="phone-a" dir="ltr" required><span class="hint">همان چیزی که گوشی در فیلد deviceId می‌فرستد.</span></label>
-    <label>نام <input type="text" name="display_name" placeholder="گوشی ملت" required></label>
-    <button class="btn btn--primary" type="submit">ساختن و صدور توکن</button>
+    <label>کد دستگاه <input type="text" name="code" placeholder="phone-a" dir="ltr" required data-testid="device-code-input"><span class="hint">همان چیزی که گوشی در فیلد deviceId می‌فرستد.</span></label>
+    <label>نام <input type="text" name="display_name" placeholder="گوشی ملت" required data-testid="device-name-input"></label>
+    <button class="btn btn--primary" type="submit" data-testid="device-create-btn">ساختن و صدور توکن</button>
   </form>
 </div>
 {% endif %}

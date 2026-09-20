@@ -27,6 +27,22 @@ from tests.web import PASSWORD, make_operator
 
 SECTIONS = [item.id for group in NAV for item in group.items]
 
+# Every selector this suite uses, in one place, and every one of them a
+# data-testid. The point is that restyling the panel - different classes,
+# different nesting, a different element - cannot break these tests, and that
+# a test failure therefore means the behaviour changed rather than the markup.
+TID = {
+    name: f'[data-testid="{name}"]'
+    for name in (
+        "sidebar", "page-content", "bell", "bell-count", "flash-notice", "flash-error",
+        "login-email", "login-password", "login-submit", "login-error",
+        "payment-approve-btn",
+        "device-name-input", "device-code-input", "device-create-btn",
+        "device-actions-summary", "device-rotate-form", "device-rotate-confirm", "device-rotate-btn",
+        "token-reveal",
+    )
+}
+
 
 
 
@@ -64,9 +80,9 @@ async def op(browser, base_url):
         context = await browser.new_context(locale="fa-IR")
         page = Page(await context.new_page())
         await page.page.goto(f"{base_url}/login")
-        await page.page.fill("input[name=email]", email)
-        await page.page.fill("input[name=password]", PASSWORD)
-        await page.page.click("button[type=submit]")
+        await page.page.fill(TID["login-email"], email)
+        await page.page.fill(TID["login-password"], PASSWORD)
+        await page.page.click(TID["login-submit"])
         await page.page.wait_for_load_state("networkidle")
         return page
 
@@ -92,7 +108,7 @@ async def seeded():
 async def test_logging_in_through_the_form_opens_the_panel(op, base_url):
     page = await op("ADMIN")
     assert page.page.url.rstrip("/") == base_url, f"login did not land on the overview: {page.page.url}"
-    assert await page.page.locator(".sidebar").is_visible()
+    assert await page.page.locator(TID["sidebar"]).is_visible()
     assert not page.problems(), page.problems()
 
 
@@ -101,11 +117,11 @@ async def test_a_wrong_password_says_one_generic_thing_and_opens_nothing(browser
     context = await browser.new_context()
     page = await context.new_page()
     await page.goto(f"{base_url}/login")
-    await page.fill("input[name=email]", "admin@x.io")
-    await page.fill("input[name=password]", "wrong")
-    await page.click("button[type=submit]")
+    await page.fill(TID["login-email"], "admin@x.io")
+    await page.fill(TID["login-password"], "wrong")
+    await page.click(TID["login-submit"])
     await page.wait_for_load_state("networkidle")
-    assert await page.locator(".flash--err").is_visible()
+    assert await page.locator(TID["login-error"]).is_visible()
     assert not [c for c in await context.cookies() if c["name"] == "alod_session"]
 
 
@@ -118,7 +134,7 @@ async def test_every_section_renders_in_a_browser_without_a_console_error_or_a_b
         response = await page.page.goto(page.page.url.split("/", 3)[0] + "//" + page.page.url.split("/")[2] + path)
         assert response is not None and response.status == 200, f"{path} -> {response and response.status}"
         await page.page.wait_for_load_state("networkidle")
-        assert await page.page.locator("h1, h2, .content").first.is_visible(), f"{path} rendered nothing"
+        assert await page.page.locator(TID["page-content"]).is_visible(), f"{path} rendered nothing"
     assert not page.problems(), "the panel is not clean in a browser:\n" + "\n".join(page.problems())
 
 
@@ -128,14 +144,14 @@ async def test_the_shell_is_right_to_left_and_the_numbers_are_persian(op, seeded
     direction = await page.page.evaluate("getComputedStyle(document.documentElement).direction")
     assert direction == "rtl"
     # The bell carries the review count, and an operator reads it in Persian.
-    bell = await page.page.locator(".bell .badge--count").inner_text()
+    bell = await page.page.locator(TID["bell-count"]).inner_text()
     assert bell.strip() == "۲", f"the bell shows {bell!r}, not Persian digits"
 
 
 async def test_a_reviewer_approves_a_claim_with_the_credit_and_the_queue_lets_it_go(op, seeded, base_url):
     page = await op("REVIEWER")
     await page.page.goto(f"{base_url}/payments?tab=review")
-    approve = page.page.locator("form[action^='/payments/'][action*='/approve'] button")
+    approve = page.page.locator(TID["payment-approve-btn"])
     assert await approve.count() == 2, "both ambiguous claims should offer their suggested credit"
     await approve.first.click()
     await page.page.wait_for_load_state("networkidle")
@@ -144,31 +160,29 @@ async def test_a_reviewer_approves_a_claim_with_the_credit_and_the_queue_lets_it
         counts = await review.tab_counts(db)
     assert counts["review"] == 1 and counts["manual"] + counts["auto"] == 1
     # The credit is spent, so the second claim is no longer offered it.
-    assert await page.page.locator("form[action*='/approve'] button").count() == 0
-    assert (await page.page.locator(".bell .badge--count").inner_text()).strip() == "۱"
+    assert await page.page.locator(TID["payment-approve-btn"]).count() == 0
+    assert (await page.page.locator(TID["bell-count"]).inner_text()).strip() == "۱"
     assert not page.problems(), page.problems()
 
 
 async def test_a_destructive_control_does_nothing_until_its_confirmation_is_ticked(op, base_url):
     page = await op("ADMIN")
     await page.page.goto(f"{base_url}/devices")
-    await page.page.fill("input[name=display_name]", "گوشی تست")
-    await page.page.fill("input[name=code]", "phone-browser")
-    await page.page.click("form[action='/devices'] button[type=submit]")
+    await page.page.fill(TID["device-name-input"], "گوشی تست")
+    await page.page.fill(TID["device-code-input"], "phone-browser")
+    await page.page.click(TID["device-create-btn"])
     await page.page.wait_for_load_state("networkidle")
 
     # The row's actions are a disclosure of their own (the page has another).
-    await page.page.locator("details:has(form[action$='/rotate']) summary").click()
-    rotate = page.page.locator("form[action$='/rotate']")
-    await rotate.locator("button[type=submit]").click()  # without ticking
+    await page.page.locator(TID["device-actions-summary"]).click()
+    await page.page.locator(TID["device-rotate-btn"]).click()  # without ticking
     await page.page.wait_for_load_state("networkidle")
-    assert await page.page.locator(".flash--err, .flash").first.is_visible()
-    assert await page.page.locator(".token-reveal, code").count() == 0, "a token was issued without the confirmation"
+    assert await page.page.locator(TID["flash-error"]).is_visible()
+    assert await page.page.locator(TID["token-reveal"]).count() == 0, "a token was issued without the confirmation"
 
-    await page.page.locator("details:has(form[action$='/rotate']) summary").click()
-    rotate = page.page.locator("form[action$='/rotate']")
-    await rotate.locator("input[name=confirm]").check()
-    await rotate.locator("button[type=submit]").click()
+    await page.page.locator(TID["device-actions-summary"]).click()
+    await page.page.locator(TID["device-rotate-confirm"]).check()
+    await page.page.locator(TID["device-rotate-btn"]).click()
     await page.page.wait_for_load_state("networkidle")
     assert "phone-browser" in await page.page.content()
 
@@ -182,7 +196,7 @@ async def test_the_bell_count_keeps_itself_up_to_date_without_a_page_load(op, ba
     monkeypatch.setattr(get_settings(), "bell_poll_seconds", 1)
     page = await op("ADMIN")
     await page.page.goto(f"{base_url}/accounts")
-    assert await page.page.locator(".bell .badge--count").count() == 0, "nothing is waiting yet"
+    assert await page.page.locator(TID["bell-count"]).count() == 0, "nothing is waiting yet"
 
     # Two payments and one credit: the matcher refuses to guess and both land
     # in the review queue, while the browser sits on another page.
@@ -193,7 +207,7 @@ async def test_the_bell_count_keeps_itself_up_to_date_without_a_page_load(op, ba
     async with async_session_maker() as db:
         await settle.settle(db)
 
-    badge = page.page.locator(".bell .badge--count")
+    badge = page.page.locator(TID["bell-count"])
     await badge.wait_for(timeout=10_000)
     assert (await badge.inner_text()).strip() == "۲"
     assert (await page.page.title()).startswith("(۲)"), "the tab does not say how many are waiting"

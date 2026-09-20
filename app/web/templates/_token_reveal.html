@@ -1,5 +1,5 @@
 {% if new_token %}
-<div class="card card--token">
+<div class="card card--token" data-testid="token-reveal">
   <h2>توکن دستگاه «{{ token_device.display_name }}» — فقط همین یک بار نشان داده می‌شود</h2>
   <p>این مقدار را در اپ رله روی گوشی، در فیلد <code>apiKey</code> بگذارید. در سرور فقط هش آن نگه داشته می‌شود؛ اگر گم شد باید توکن را بچرخانید.</p>
   <pre dir="ltr" data-token="{{ new_token }}">{{ new_token }}</pre>
